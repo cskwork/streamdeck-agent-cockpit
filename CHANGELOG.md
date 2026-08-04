@@ -1,5 +1,10 @@
 # Changelog
 
+## 3.1.1 — Windows CI fix
+
+- `slotclaims._ps` returns `None` off POSIX instead of spawning `ps`, which hung the Windows job until it was cancelled. Ancestry and tty discovery were always POSIX-only; that is now explicit in code, tests, and docs.
+- Split the claims round-trip test from the file-mode assertion and skipped POSIX-only tests on other platforms.
+
 ## 3.1.0 — Attach to sessions you already have open
 
 Runtime:

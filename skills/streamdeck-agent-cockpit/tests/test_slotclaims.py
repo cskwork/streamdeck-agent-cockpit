@@ -33,10 +33,14 @@ class SlotClaimsTest(unittest.TestCase):
     def test_missing_file_yields_empty_slots(self) -> None:
         self.assertEqual(slotclaims.load(), {"slots": {}})
 
-    def test_round_trip_is_private(self) -> None:
+    def test_round_trip_preserves_claims(self) -> None:
+        slotclaims.save({"slots": {"session.claude.slot1": self.live_claim("a")}})
+        self.assertIn("session.claude.slot1", slotclaims.load()["slots"])
+
+    @unittest.skipUnless(os.name == "posix", "POSIX file modes only")
+    def test_claims_file_is_private(self) -> None:
         slotclaims.save({"slots": {"session.claude.slot1": self.live_claim("a")}})
         self.assertEqual(slotclaims.claims_path().stat().st_mode & 0o777, 0o600)
-        self.assertIn("session.claude.slot1", slotclaims.load()["slots"])
 
     def test_same_session_keeps_its_slot(self) -> None:
         data = {"slots": {"session.claude.slot1": self.live_claim("a")}}
@@ -68,11 +72,22 @@ class SlotClaimsTest(unittest.TestCase):
         self.assertEqual(data["slots"], {})
         self.assertIsNone(slotclaims.release(data, "a"))
 
+    @unittest.skipUnless(os.name == "posix", "ancestry and tty discovery is POSIX only")
     def test_owner_discovery_reports_a_live_pid(self) -> None:
         owner = slotclaims.discover_owner()
         self.assertTrue(slotclaims.pid_alive(owner.get("pid")))
         tty = owner.get("tty") or ""
         self.assertTrue(tty == "" or tty.startswith("/dev/"))
+
+    def test_owner_discovery_degrades_without_ps(self) -> None:
+        original = slotclaims._ps
+        slotclaims._ps = lambda pid: None  # type: ignore[assignment]
+        try:
+            owner = slotclaims.discover_owner()
+        finally:
+            slotclaims._ps = original  # type: ignore[assignment]
+        self.assertEqual(owner.get("pid"), os.getpid())
+        self.assertEqual(owner.get("tty"), "")
 
 
 if __name__ == "__main__":

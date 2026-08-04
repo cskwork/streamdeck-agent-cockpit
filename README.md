@@ -18,7 +18,7 @@
 
 <p align="center">
   <img alt="license" src="https://img.shields.io/badge/license-MIT-10B981">
-  <img alt="version" src="https://img.shields.io/badge/version-3.1.0-10B981">
+  <img alt="version" src="https://img.shields.io/badge/version-3.1.1-10B981">
   <img alt="python" src="https://img.shields.io/badge/python-3.9%2B%20stdlib%20only-10B981">
   <img alt="no mcp" src="https://img.shields.io/badge/MCP-not%20required-10B981">
 </p>
@@ -306,6 +306,7 @@ Known limits of this path, all deliberate:
 - **Sessions already running when you install the bridge stay invisible** until they restart.
 - **Slots are finite.** When all are held by live sessions, a new one is ignored rather than evicting someone.
 - **No interrupt gesture on attached slots.** There is no supported way to send a scoped `Ctrl-C` through terminal automation, so interrupt stays on tmux-backed sessions where `tmux send-keys` is exact.
+- **macOS only.** The bundled probe and focus helpers depend on `ps` ancestry and AppleScript; other platforms need their own commands behind the same adapter.
 - **Terminal titles are never scraped.** They look like a usable signal but cannot separate "thinking" from "waiting for approval".
 
 ## Verification
@@ -329,7 +330,7 @@ Physical-device behavior still requires testing in the Stream Deck application a
 - The official plugin boundary does not provide a safe generic API for editing arbitrary profiles or controlling unrelated third-party plugin actions.
 - Terminal focus behavior is terminal-specific and requires on-device verification.
 - Without a hook/RPC/workflow report, session state is coarse only.
-- Attached sessions occupy a fixed number of slots and carry no interrupt gesture; the reference hook bridge covers Claude Code only.
+- Attached sessions occupy a fixed number of slots and carry no interrupt gesture; the reference hook bridge covers Claude Code only, and the bundled probe and focus helpers are macOS-only.
 
 ## Security boundary
 
