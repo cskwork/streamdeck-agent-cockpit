@@ -57,6 +57,37 @@ Every semantic report expires. After expiration:
 
 This prevents a key from remaining “running” after an agent, hook, daemon, or terminal failure.
 
+## Claude Code hook mapping
+
+`claude_hook.py` is the reference event source. Every state it reports comes
+from a hook event; terminal titles are never scraped. A title may look like a
+usable signal — Claude Code writes a spinner and the current task into it — but
+it cannot distinguish "thinking" from "waiting for approval", and a wrong green
+light is worse than no light.
+
+| Hook event | State | TTL | Meaning |
+|---|---|---|---|
+| `SessionStart` | `idle` | 7200 | Session exists, not working |
+| `UserPromptSubmit` | `running` | 1800 | A turn is in flight |
+| `Notification` (permission / idle / elicitation) | `needs_attention` | 3600 | Blocked on the user |
+| `Stop` | `idle` | 7200 | Turn finished, user's move |
+| `SessionEnd` | — | — | Releases the slot; key falls back to coarse |
+
+The label carries the project directory name, not prompt text, file contents, or
+model output. See the redaction rule above.
+
+Two consequences worth stating to the user:
+
+- **A turn longer than the `running` TTL falls back to coarse state.** That is
+  correct behaviour, not a bug: the last evidence has expired. Raise the TTL
+  only if long turns are routine.
+- **Hooks are read when a session starts.** Sessions already running when the
+  bridge is installed are not visible until they restart.
+
+Register the bridge with `install_claude_hooks.py`, which is append-only and
+idempotent. Other agents need their own bridge: the slot and focus machinery is
+agent-neutral, only the event mapping is not.
+
 ## Percentages
 
 A progress percentage is valid only when explicitly emitted from a measurable workflow, such as 27 of 40 tests or 8 of 10 files processed. Never derive it from elapsed time, token count, terminal activity, number of log lines, or model prose.
