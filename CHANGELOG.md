@@ -4,6 +4,7 @@
 
 - `slotclaims._ps` returns `None` off POSIX instead of spawning `ps`, which hung the Windows job until it was cancelled. Ancestry and tty discovery were always POSIX-only; that is now explicit in code, tests, and docs.
 - Split the claims round-trip test from the file-mode assertion and skipped POSIX-only tests on other platforms.
+- Pinned `shell: bash` across the CI matrix. The Windows jobs kept failing after the code fix even though all 22 tests passed and `unittest` exited 0: the Windows default shell is pwsh, which applies its own error semantics to a native command, and `unittest` writes all output to stderr. The step now reports the process exit code, and logs it.
 
 ## 3.1.0 — Attach to sessions you already have open
 
