@@ -1,0 +1,54 @@
+name: verify runtime
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+defaults:
+  run:
+    working-directory: skills/streamdeck-agent-cockpit
+
+jobs:
+  checks:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        python: ["3.9", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Byte-compile
+        run: python -m compileall -q bin scripts tests
+      - name: Unit tests
+        run: python -m unittest discover -s tests -v
+      - name: Validate example config
+        run: python scripts/validate_cockpit.py assets/cockpit.example.json
+      - name: Smoke test
+        run: python scripts/smoke_test.py
+
+  mirrors:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: .
+    steps:
+      - uses: actions/checkout@v4
+      - name: SKILL.md mirrors are in sync
+        run: |
+          diff -u skills/streamdeck-agent-cockpit/SKILL.md \
+                  .cursor/skills/streamdeck-agent-cockpit/SKILL.md
+      - name: Manifests are valid JSON
+        run: |
+          for f in plugin.json gemini-extension.json \
+                   .claude-plugin/plugin.json .claude-plugin/marketplace.json \
+                   .codex-plugin/plugin.json .agents/plugins/marketplace.json \
+                   skills/streamdeck-agent-cockpit/assets/cockpit.schema.json \
+                   skills/streamdeck-agent-cockpit/assets/cockpit.example.json; do
+            python -c "import json,sys; json.load(open(sys.argv[1]))" "$f" || exit 1
+            echo "ok $f"
+          done

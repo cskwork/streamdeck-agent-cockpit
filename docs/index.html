@@ -1,0 +1,643 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Stream Deck Agent Cockpit — hardware controls for Claude Code, Codex, Pi, and JCode</title>
+<meta name="description" content="A standalone, locally controlled Stream Deck cockpit for terminal coding agents. Launch, focus, resume, and interrupt named sessions with evidence-backed status. No MCP server, no cloud, no model at runtime.">
+<link rel="icon" href="./logo.png">
+<meta property="og:title" content="Stream Deck Agent Cockpit">
+<meta property="og:description" content="Hardware controls for Claude Code, Codex, Pi, and JCode. Standalone, local, evidence-backed. No MCP server, no cloud.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://cskwork.github.io/streamdeck-agent-cockpit/">
+<meta property="og:image" content="https://cskwork.github.io/streamdeck-agent-cockpit/logo.png">
+<meta name="twitter:card" content="summary">
+<style>
+  :root{
+    --bg:#07090c;
+    --bg-soft:#0b0f14;
+    --panel:#0e131a;
+    --panel-2:#121922;
+    --line:#1c2530;
+    --line-soft:#161e27;
+    --ink:#e8edf3;
+    --ink-2:#9aa8b8;
+    --ink-3:#66768a;
+    --accent:#10b981;
+    --accent-dim:#059669;
+    --amber:#f59e0b;
+    --red:#ef4444;
+    --mono:ui-monospace,"SF Mono",SFMono-Regular,"JetBrains Mono",Menlo,Consolas,monospace;
+    --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,"Helvetica Neue",Arial,sans-serif;
+    --radius:14px;
+    --maxw:1080px;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{
+    margin:0;background:var(--bg);color:var(--ink);
+    font-family:var(--sans);font-size:16px;line-height:1.6;
+    -webkit-font-smoothing:antialiased;
+    background-image:
+      radial-gradient(900px 500px at 50% -10%, rgba(16,185,129,.10), transparent 70%),
+      linear-gradient(var(--line-soft) 1px, transparent 1px),
+      linear-gradient(90deg, var(--line-soft) 1px, transparent 1px);
+    background-size:auto, 56px 56px, 56px 56px;
+    background-position:center top, center top, center top;
+  }
+  a{color:inherit}
+  .wrap{max-width:var(--maxw);margin:0 auto;padding:0 24px}
+
+  /* ---------- nav ---------- */
+  nav{position:sticky;top:0;z-index:20;backdrop-filter:blur(12px);
+      background:rgba(7,9,12,.78);border-bottom:1px solid var(--line-soft)}
+  .nav-in{display:flex;align-items:center;gap:16px;height:60px}
+  .brand{display:flex;align-items:center;gap:10px;font-weight:650;letter-spacing:-.01em;text-decoration:none}
+  .brand img{width:26px;height:26px;border-radius:7px;display:block}
+  .nav-links{display:flex;gap:22px;margin-left:auto;align-items:center;font-size:14px;color:var(--ink-2)}
+  .nav-links a{text-decoration:none}
+  .nav-links a:hover{color:var(--ink)}
+  .nav-cta{padding:7px 14px;border:1px solid var(--line);border-radius:9px;color:var(--ink)!important;background:var(--panel)}
+  .nav-cta:hover{border-color:var(--accent-dim)}
+  @media(max-width:760px){.nav-links .hide-sm{display:none}}
+
+  /* ---------- hero ---------- */
+  header{padding:88px 0 72px;text-align:center}
+  .eyebrow{
+    display:inline-flex;align-items:center;gap:8px;font-family:var(--mono);font-size:12px;
+    letter-spacing:.08em;text-transform:uppercase;color:var(--accent);
+    border:1px solid rgba(16,185,129,.28);background:rgba(16,185,129,.06);
+    padding:6px 12px;border-radius:999px;margin-bottom:26px
+  }
+  .dot{width:6px;height:6px;border-radius:50%;background:var(--accent);box-shadow:0 0 10px var(--accent)}
+  h1{
+    font-size:clamp(34px,6vw,60px);line-height:1.05;letter-spacing:-.035em;
+    margin:0 0 22px;font-weight:680;max-width:16ch;margin-inline:auto
+  }
+  h1 em{font-style:normal;color:var(--accent)}
+  .lede{font-size:clamp(16px,2vw,19px);color:var(--ink-2);max-width:60ch;margin:0 auto 34px}
+  .cta-row{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin-bottom:22px}
+  .btn{
+    display:inline-flex;align-items:center;gap:9px;padding:12px 22px;border-radius:11px;
+    text-decoration:none;font-size:15px;font-weight:560;border:1px solid transparent;transition:.15s
+  }
+  .btn-primary{background:var(--accent);color:#04120c;border-color:var(--accent)}
+  .btn-primary:hover{background:#0ea371}
+  .btn-ghost{border-color:var(--line);color:var(--ink);background:var(--panel)}
+  .btn-ghost:hover{border-color:var(--ink-3)}
+  .badges{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;font-family:var(--mono);font-size:12px;color:var(--ink-3)}
+  .badge{border:1px solid var(--line);border-radius:7px;padding:4px 10px;background:var(--bg-soft)}
+
+  /* ---------- deck mock ---------- */
+  .deck-shell{
+    margin:56px auto 0;max-width:660px;background:linear-gradient(180deg,var(--panel),#0a0e13);
+    border:1px solid var(--line);border-radius:20px;padding:22px;
+    box-shadow:0 40px 90px -50px rgba(0,0,0,.95), inset 0 1px 0 rgba(255,255,255,.03)
+  }
+  .deck{display:grid;grid-template-columns:repeat(5,1fr);gap:11px}
+  .key{
+    aspect-ratio:1;border-radius:12px;background:var(--panel-2);border:1px solid var(--line);
+    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;
+    padding:6px;text-align:center;font-size:11px;letter-spacing:-.005em;color:var(--ink-2);
+    position:relative;overflow:hidden
+  }
+  .key b{font-size:12.5px;font-weight:600;color:var(--ink);display:block;line-height:1.15}
+  .key .tag{font-family:var(--mono);font-size:9.5px;letter-spacing:.09em;text-transform:uppercase}
+  .key::after{content:"";position:absolute;left:0;right:0;bottom:0;height:3px;background:var(--line)}
+  .key.run{border-color:rgba(16,185,129,.45);background:linear-gradient(180deg,rgba(16,185,129,.13),transparent)}
+  .key.run .tag{color:var(--accent)} .key.run::after{background:var(--accent)}
+  .key.check{border-color:rgba(245,158,11,.45);background:linear-gradient(180deg,rgba(245,158,11,.11),transparent)}
+  .key.check .tag{color:var(--amber)} .key.check::after{background:var(--amber)}
+  .key.fail{border-color:rgba(239,68,68,.42);background:linear-gradient(180deg,rgba(239,68,68,.10),transparent)}
+  .key.fail .tag{color:var(--red)} .key.fail::after{background:var(--red)}
+  .key.off .tag,.key.off b{color:var(--ink-3)}
+  .deck-caption{
+    margin:16px 2px 0;display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;
+    font-family:var(--mono);font-size:11px;color:var(--ink-3)
+  }
+
+  /* ---------- sections ---------- */
+  section{padding:84px 0;border-top:1px solid var(--line-soft)}
+  .sec-head{max-width:64ch;margin-bottom:40px}
+  .sec-tag{font-family:var(--mono);font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--accent);margin-bottom:12px}
+  h2{font-size:clamp(24px,3.4vw,34px);letter-spacing:-.028em;margin:0 0 14px;font-weight:660;line-height:1.15}
+  h3{font-size:17px;margin:0 0 8px;letter-spacing:-.015em;font-weight:620}
+  .sub{color:var(--ink-2);margin:0}
+
+  .grid{display:grid;gap:16px}
+  .grid > *{min-width:0}
+  .g3{grid-template-columns:repeat(3,1fr)}
+  .g2{grid-template-columns:repeat(2,1fr)}
+  @media(max-width:820px){.g3,.g2{grid-template-columns:1fr}}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:22px}
+  .card p{margin:0;color:var(--ink-2);font-size:14.5px}
+  .card .ico{
+    width:32px;height:32px;border-radius:9px;background:rgba(16,185,129,.10);
+    border:1px solid rgba(16,185,129,.22);display:flex;align-items:center;justify-content:center;
+    margin-bottom:14px;color:var(--accent)
+  }
+  .card .ico svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+
+  /* ---------- code ---------- */
+  pre{
+    margin:0;background:var(--bg-soft);border:1px solid var(--line);border-radius:12px;
+    padding:18px 20px;overflow-x:auto;font-family:var(--mono);font-size:13px;line-height:1.75;color:var(--ink-2)
+  }
+  pre .c{color:var(--ink-3)}
+  pre .k{color:var(--accent)}
+  pre .s{color:#7dd3fc}
+  code{font-family:var(--mono);font-size:.9em;background:var(--panel-2);border:1px solid var(--line);
+       padding:1.5px 6px;border-radius:5px;color:var(--ink)}
+  .codeblock{position:relative}
+  .codeblock:has(.copy) pre{padding-top:40px}
+  .copy{
+    position:absolute;top:10px;right:10px;font-family:var(--mono);font-size:11px;
+    background:var(--panel-2);border:1px solid var(--line);color:var(--ink-2);
+    border-radius:7px;padding:5px 9px;cursor:pointer;transition:.15s
+  }
+  .copy:hover{color:var(--ink);border-color:var(--ink-3)}
+
+  /* ---------- diagram ---------- */
+  .flow{display:grid;gap:0;justify-items:center;font-family:var(--mono);font-size:13px}
+  .node{
+    background:var(--panel);border:1px solid var(--line);border-radius:11px;
+    padding:13px 20px;text-align:center;min-width:min(340px,100%)
+  }
+  .node small{display:block;font-family:var(--sans);font-size:12px;color:var(--ink-3);margin-top:3px}
+  .node.hi{border-color:rgba(16,185,129,.4);background:linear-gradient(180deg,rgba(16,185,129,.07),var(--panel))}
+  .arrow{width:1px;height:26px;background:linear-gradient(var(--line),var(--ink-3));position:relative}
+  .arrow::after{content:"";position:absolute;bottom:-1px;left:-3.5px;border:4px solid transparent;border-top-color:var(--ink-3)}
+  .arrow span{
+    position:absolute;left:14px;top:50%;transform:translateY(-50%);white-space:nowrap;
+    font-size:11px;color:var(--ink-3)
+  }
+  .fanout{display:flex;gap:12px;flex-wrap:wrap;justify-content:center;margin-top:0}
+  .leaf{border:1px dashed var(--line);border-radius:10px;padding:10px 16px;color:var(--ink-2);font-size:12.5px;background:var(--bg-soft)}
+
+  /* ---------- table ---------- */
+  .tbl{width:100%;border-collapse:collapse;font-size:14px;overflow:hidden;
+       border:1px solid var(--line);border-radius:var(--radius)}
+  .tbl th,.tbl td{padding:13px 16px;text-align:left;border-bottom:1px solid var(--line-soft)}
+  .tbl thead th{background:var(--panel);font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3);font-weight:600}
+  .tbl tbody tr:last-child td{border-bottom:none}
+  .tbl td:first-child{font-family:var(--mono);font-size:13px;color:var(--ink)}
+  .tbl .num{text-align:center;width:150px}
+  .yes{color:var(--accent);font-weight:600}
+  .no{color:var(--ink-3)}
+  .tbl-scroll{overflow-x:auto;border-radius:var(--radius)}
+
+  /* ---------- lists ---------- */
+  .check-list{list-style:none;padding:0;margin:0;display:grid;gap:11px}
+  .check-list li{display:flex;gap:11px;align-items:flex-start;color:var(--ink-2);font-size:14.5px}
+  .check-list li::before{
+    content:"";flex:none;width:16px;height:16px;margin-top:4px;border-radius:5px;
+    background:rgba(16,185,129,.12);border:1px solid rgba(16,185,129,.35);
+    background-image:linear-gradient(transparent,transparent)
+  }
+  .x-list li::before{background:rgba(239,68,68,.10);border-color:rgba(239,68,68,.32)}
+
+  /* ---------- tabs ---------- */
+  .tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px}
+  .tab{
+    font-family:var(--mono);font-size:12.5px;padding:8px 14px;border-radius:9px;cursor:pointer;
+    background:var(--panel);border:1px solid var(--line);color:var(--ink-2);transition:.15s
+  }
+  .tab:hover{color:var(--ink)}
+  .tab[aria-selected="true"]{background:rgba(16,185,129,.10);border-color:rgba(16,185,129,.4);color:var(--accent)}
+  .panel[hidden]{display:none}
+  .panel p{color:var(--ink-2);font-size:14px;margin:12px 0 0}
+
+  /* ---------- footer ---------- */
+  footer{border-top:1px solid var(--line-soft);padding:44px 0 60px;color:var(--ink-3);font-size:13.5px}
+  .foot-in{display:flex;justify-content:space-between;gap:20px;flex-wrap:wrap;align-items:center}
+  .foot-in a{color:var(--ink-2);text-decoration:none;margin-left:20px}
+  .foot-in a:hover{color:var(--ink)}
+  .foot-links{display:flex;flex-wrap:wrap}
+  .foot-links a:first-child{margin-left:0}
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="wrap nav-in">
+    <a class="brand" href="#top"><img src="./logo.png" alt=""> Agent Cockpit</a>
+    <div class="nav-links">
+      <a href="#how" class="hide-sm">How it works</a>
+      <a href="#modes" class="hide-sm">Modes</a>
+      <a href="#status" class="hide-sm">Status</a>
+      <a href="#install">Install</a>
+      <a class="nav-cta" href="https://github.com/cskwork/streamdeck-agent-cockpit">GitHub</a>
+    </div>
+  </div>
+</nav>
+
+<header id="top">
+  <div class="wrap">
+    <span class="eyebrow"><span class="dot"></span> Skill · v3.0.0 · standalone</span>
+    <h1>Your Stream Deck, wired into your <em>agents</em>.</h1>
+    <p class="lede">
+      One portable skill that turns a Stream Deck into a local cockpit for Claude Code, Codex, Pi,
+      JCode, and any other terminal agent. Tap to focus a session. Hold to interrupt it. Read status
+      that is actually backed by evidence.
+    </p>
+    <div class="cta-row">
+      <a class="btn btn-primary" href="#install">Install the skill</a>
+      <a class="btn btn-ghost" href="https://github.com/cskwork/streamdeck-agent-cockpit">View source</a>
+    </div>
+    <div class="badges">
+      <span class="badge">MIT</span>
+      <span class="badge">Python 3.9+ stdlib only</span>
+      <span class="badge">no MCP server</span>
+      <span class="badge">no cloud</span>
+      <span class="badge">no model at runtime</span>
+    </div>
+
+    <div class="deck-shell" aria-label="Example Stream Deck layout">
+      <div class="deck">
+        <div class="key run">    <b>Claude</b><span class="tag">run</span></div>
+        <div class="key check">  <b>Codex</b><span class="tag">check</span></div>
+        <div class="key">        <b>Pi</b><span class="tag">present</span></div>
+        <div class="key off">    <b>JCode</b><span class="tag">off</span></div>
+        <div class="key">        <b>Tests</b><span class="tag">idle</span></div>
+        <div class="key">        <b>Review</b><span class="tag">idle</span></div>
+        <div class="key fail">   <b>Deploy</b><span class="tag">failed</span></div>
+        <div class="key">        <b>Dash</b><span class="tag">open</span></div>
+        <div class="key off">    <b>Daemon</b><span class="tag">no link</span></div>
+        <div class="key">        <b>Logs</b><span class="tag">idle</span></div>
+      </div>
+      <div class="deck-caption">
+        <span>tap → focus_or_launch</span>
+        <span>hold → interrupt (confirmed)</span>
+        <span>labels expire when reports go stale</span>
+      </div>
+    </div>
+  </div>
+</header>
+
+<section id="why">
+  <div class="wrap">
+    <div class="sec-head">
+      <div class="sec-tag">The point</div>
+      <h2>A physical control surface that never lies to you.</h2>
+      <p class="sub">
+        Most agent dashboards guess. They read a PID, watch a terminal title, scrape output, and
+        render a confident “working…”. This one refuses to. A key shows a semantic state only when
+        something reported it, and reverts to a coarse fact the moment that report expires.
+      </p>
+    </div>
+    <div class="grid g3">
+      <div class="card">
+        <div class="ico"><svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h10"/></svg></div>
+        <h3>Predeclared operations only</h3>
+        <p>A button press sends a named operation, never shell text. Commands are argv arrays run with <code>shell=False</code>. There is no raw-execution endpoint to abuse.</p>
+      </div>
+      <div class="card">
+        <div class="ico"><svg viewBox="0 0 24 24"><rect x="4" y="10" width="16" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg></div>
+        <h3>Loopback and token-gated</h3>
+        <p>The daemon binds to <code>127.0.0.1</code> and authenticates every request against a random token in a mode-0600 file. Nothing leaves the machine.</p>
+      </div>
+      <div class="card">
+        <div class="ico"><svg viewBox="0 0 24 24"><path d="M12 8v5l3 2"/><circle cx="12" cy="12" r="9"/></svg></div>
+        <h3>State that expires</h3>
+        <p>Every semantic report carries a TTL. When it lapses the key falls back to a probe result, so a dead agent can never leave a key stuck on “running”.</p>
+      </div>
+      <div class="card">
+        <div class="ico"><svg viewBox="0 0 24 24"><path d="M3 12h4l3 8 4-16 3 8h4"/></svg></div>
+        <h3>Logical bindings</h3>
+        <p>Controls bind to a stable <code>controlId</code>, never a row/column. Rearrange your deck in the Stream Deck app and the config stays valid.</p>
+      </div>
+      <div class="card">
+        <div class="ico"><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg></div>
+        <h3>Guarded destructive gestures</h3>
+        <p>Interrupt, kill, deploy, and merge require an explicit confirmation policy. A stray tap cannot stop a running agent.</p>
+      </div>
+      <div class="card">
+        <div class="ico"><svg viewBox="0 0 24 24"><path d="M12 3v18M3 12h18"/></svg></div>
+        <h3>Nothing else touched</h3>
+        <p>The skill owns its config, launchers, plugin UUID, and action instances. Stream Deck's internal profile database and third-party actions are never rewritten.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="how">
+  <div class="wrap">
+    <div class="sec-head">
+      <div class="sec-tag">How it works</div>
+      <h2>One local daemon is the entire policy boundary.</h2>
+      <p class="sub">
+        Stream Deck is the input device and the display. <code>cockpitd</code> decides what may run.
+        Everything between them is a named operation over loopback.
+      </p>
+    </div>
+
+    <div class="flow">
+      <div class="node">Stream Deck action <em>or</em> generated launcher<small>tap · hold · dial</small></div>
+      <div class="arrow"><span>HTTP on 127.0.0.1 + bearer token</span></div>
+      <div class="node hi">cockpitd<small>loads config · authenticates · resolves controlId → operation</small></div>
+      <div class="arrow"><span>predeclared argv, shell=False</span></div>
+      <div class="node">session / command adapter<small>tmux, terminal, or your own adapter</small></div>
+      <div class="arrow"></div>
+      <div class="fanout">
+        <span class="leaf">Claude Code</span>
+        <span class="leaf">Codex</span>
+        <span class="leaf">Pi</span>
+        <span class="leaf">JCode</span>
+        <span class="leaf">any CLI</span>
+      </div>
+    </div>
+
+    <div class="grid g2" style="margin-top:40px">
+      <div>
+        <h3 style="margin-bottom:12px">Configure controls, not coordinates</h3>
+        <div class="codeblock">
+<pre><span class="c">// ~/.agent-cockpit/cockpit.json (version 3)</span>
+<span class="k">"session.claude.main"</span>: {
+  <span class="k">"label"</span>: <span class="s">"Claude"</span>,
+  <span class="k">"adapter"</span>: { <span class="k">"type"</span>: <span class="s">"tmux"</span>, <span class="k">"target"</span>: <span class="s">"ac-claude-main"</span> },
+  <span class="k">"commands"</span>: {
+    <span class="k">"launch"</span>:    { <span class="k">"argv"</span>: [<span class="s">"tmux"</span>,<span class="s">"new-session"</span>,<span class="s">"-d"</span>,<span class="s">"-s"</span>,<span class="s">"ac-claude-main"</span>,<span class="s">"claude"</span>] },
+    <span class="k">"interrupt"</span>: { <span class="k">"argv"</span>: [<span class="s">"tmux"</span>,<span class="s">"send-keys"</span>,<span class="s">"-t"</span>,<span class="s">"ac-claude-main"</span>,<span class="s">"C-c"</span>] }
+  },
+  <span class="k">"progress"</span>: { <span class="k">"source"</span>: <span class="s">"reporter"</span>, <span class="k">"staleAfterSeconds"</span>: 180 }
+}</pre>
+        </div>
+      </div>
+      <div>
+        <h3 style="margin-bottom:12px">Report real state from a hook</h3>
+        <div class="codeblock">
+          <button class="copy" data-copy="python3 ~/.agent-cockpit/bin/cockpitctl.py report session.claude.main running --label &quot;Running tests&quot; --ttl 180">copy</button>
+<pre><span class="c"># from an agent hook, CI step, or any script</span>
+python3 ~/.agent-cockpit/bin/cockpitctl.py \
+  report session.claude.main running \
+  --label <span class="s">"Running tests"</span> --ttl 180</pre>
+        </div>
+        <p class="sub" style="font-size:14px;margin-top:14px">
+          A percentage is accepted only when your workflow emits a real numerator and denominator —
+          27 of 40 tests, 8 of 10 files. It is never derived from elapsed time, token counts, or
+          model prose.
+        </p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="modes">
+  <div class="wrap">
+    <div class="sec-head">
+      <div class="sec-tag">Two modes</div>
+      <h2>Start without compiling anything.</h2>
+      <p class="sub">
+        Launcher-only mode uses the built-in Stream Deck <em>Open</em> action against generated
+        <code>.command</code>/<code>.cmd</code> files. Move to the native plugin only when you need a
+        dynamic requirement that launchers genuinely cannot serve.
+      </p>
+    </div>
+    <div class="tbl-scroll">
+      <table class="tbl">
+        <thead>
+          <tr><th>Requirement</th><th class="num">Launcher-only</th><th class="num">Native plugin</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Tap launch / focus</td><td class="num yes">Yes</td><td class="num yes">Yes</td></tr>
+          <tr><td>Static custom icon</td><td class="num yes">Yes</td><td class="num yes">Yes</td></tr>
+          <tr><td>Dynamic title / icon</td><td class="num no">No</td><td class="num yes">Yes</td></tr>
+          <tr><td>Semantic state display</td><td class="num no">No</td><td class="num yes">Yes</td></tr>
+          <tr><td>Long press</td><td class="num no">No</td><td class="num yes">Yes</td></tr>
+          <tr><td>Dial rotate / press</td><td class="num no">No</td><td class="num yes">Yes</td></tr>
+          <tr><td>Property Inspector</td><td class="num no">No</td><td class="num yes">Yes</td></tr>
+          <tr><td>Custom plugin build required</td><td class="num no">No</td><td class="num">Yes</td></tr>
+          <tr><td>MCP server required</td><td class="num no">No</td><td class="num no">No</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="sub" style="margin-top:18px;font-size:14px">
+      The repo ships a plugin <em>template</em> at <code>templates/streamdeck-plugin/</code> — one
+      generic action bound to a <code>controlId</code> — to adapt with the current official Stream
+      Deck SDK. No prebuilt plugin binary is included.
+    </p>
+  </div>
+</section>
+
+<section id="status">
+  <div class="wrap">
+    <div class="sec-head">
+      <div class="sec-tag">Evidence tiers</div>
+      <h2>What a key is allowed to claim.</h2>
+      <p class="sub">
+        Infrastructure presence and agent lifecycle are different facts, and the UI keeps them apart.
+      </p>
+    </div>
+    <div class="tbl-scroll">
+      <table class="tbl">
+        <thead><tr><th>Tier</th><th>Source</th><th>Allowed claims</th></tr></thead>
+        <tbody>
+          <tr><td>reported</td><td>Agent hook, RPC/event adapter, workflow callback, explicit reporter</td><td>Exact reported semantic state, plus explicit progress</td></tr>
+          <tr><td>coarse</td><td>tmux / process / probe exit code</td><td><code>present</code>, <code>offline</code>, or <code>unavailable</code> only</td></tr>
+          <tr><td>stale</td><td>Expired report plus a current probe</td><td>Coarse state, with the last report marked stale</td></tr>
+          <tr><td>unknown</td><td>No valid report and no working probe</td><td>Unknown / unavailable</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="grid g2" style="margin-top:36px">
+      <div class="card">
+        <h3>Semantic states, only when reported</h3>
+        <ul class="check-list" style="margin-top:14px">
+          <li><code>idle</code> · <code>running</code> · <code>needs_attention</code></li>
+          <li><code>blocked</code> · <code>succeeded</code> · <code>failed</code></li>
+          <li>Every report carries a timestamp, TTL, and source</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>Never inferred from</h3>
+        <ul class="check-list x-list" style="margin-top:14px">
+          <li>Process presence or a live PID</li>
+          <li>Elapsed time or a terminal title</li>
+          <li>Scraped terminal output or log-line counts</li>
+          <li>Token counts or model prose</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="install">
+  <div class="wrap">
+    <div class="sec-head">
+      <div class="sec-tag">Install</div>
+      <h2>Two steps: the skill, then the runtime.</h2>
+      <p class="sub">
+        The skill teaches your agent how to build and maintain the cockpit. The runtime is the
+        daemon, CLI, and launcher generator that actually run on your machine.
+      </p>
+    </div>
+
+    <h3 style="margin-bottom:14px">1 · Install the skill</h3>
+    <div class="tabs" role="tablist">
+      <button class="tab" role="tab" aria-selected="true"  data-panel="p-claude">Claude Code</button>
+      <button class="tab" role="tab" aria-selected="false" data-panel="p-codex">Codex</button>
+      <button class="tab" role="tab" aria-selected="false" data-panel="p-gemini">Gemini CLI</button>
+      <button class="tab" role="tab" aria-selected="false" data-panel="p-skills">Cursor / OpenCode / Amp</button>
+      <button class="tab" role="tab" aria-selected="false" data-panel="p-manual">Manual · JCode</button>
+    </div>
+
+    <div class="panel" id="p-claude">
+      <div class="codeblock">
+        <button class="copy" data-copy="claude plugin marketplace add cskwork/streamdeck-agent-cockpit
+claude plugin install streamdeck-agent-cockpit@streamdeck-agent-cockpit">copy</button>
+<pre>claude plugin marketplace add cskwork/streamdeck-agent-cockpit
+claude plugin install streamdeck-agent-cockpit@streamdeck-agent-cockpit</pre>
+      </div>
+      <p>Then type <code>/streamdeck-agent-cockpit</code>. Verify with <code>claude plugin list</code>.</p>
+    </div>
+
+    <div class="panel" id="p-codex" hidden>
+      <div class="codeblock">
+        <button class="copy" data-copy="codex plugin marketplace add cskwork/streamdeck-agent-cockpit --ref main
+codex plugin add streamdeck-agent-cockpit@streamdeck-agent-cockpit">copy</button>
+<pre>codex plugin marketplace add cskwork/streamdeck-agent-cockpit --ref main
+codex plugin add streamdeck-agent-cockpit@streamdeck-agent-cockpit</pre>
+      </div>
+      <p>Then type <code>$streamdeck-agent-cockpit</code>. Verify with <code>codex plugin list</code>.</p>
+    </div>
+
+    <div class="panel" id="p-gemini" hidden>
+      <div class="codeblock">
+        <button class="copy" data-copy="gemini extensions install https://github.com/cskwork/streamdeck-agent-cockpit">copy</button>
+<pre>gemini extensions install https://github.com/cskwork/streamdeck-agent-cockpit</pre>
+      </div>
+      <p>Verify with <code>gemini extensions list</code>.</p>
+    </div>
+
+    <div class="panel" id="p-skills" hidden>
+      <div class="codeblock">
+        <button class="copy" data-copy="npx skills add cskwork/streamdeck-agent-cockpit">copy</button>
+<pre>npx skills add cskwork/streamdeck-agent-cockpit
+<span class="c"># -g installs globally</span></pre>
+      </div>
+      <p>Then type <code>/streamdeck-agent-cockpit</code> in a new agent chat.</p>
+    </div>
+
+    <div class="panel" id="p-manual" hidden>
+      <div class="codeblock">
+        <button class="copy" data-copy="git clone https://github.com/cskwork/streamdeck-agent-cockpit
+cd streamdeck-agent-cockpit/skills/streamdeck-agent-cockpit
+python3 scripts/install_skill.py --target all">copy</button>
+<pre>git clone https://github.com/cskwork/streamdeck-agent-cockpit
+cd streamdeck-agent-cockpit/skills/streamdeck-agent-cockpit
+python3 scripts/install_skill.py --target all</pre>
+      </div>
+      <p>Targets: <code>claude</code>, <code>agents</code>, <code>jcode</code>, <code>all</code>. Use <code>--mode symlink</code> for an editable install.</p>
+    </div>
+
+    <h3 style="margin:38px 0 14px">2 · Install the local runtime</h3>
+    <div class="codeblock">
+      <button class="copy" data-copy="cd skills/streamdeck-agent-cockpit
+python3 scripts/probe_environment.py --json
+python3 scripts/install_runtime.py
+python3 ~/.agent-cockpit/bin/cockpitd.py --config ~/.agent-cockpit/cockpit.json">copy</button>
+<pre><span class="c"># inspect what is actually installed before assuming anything</span>
+python3 scripts/probe_environment.py --json
+
+<span class="c"># install ~/.agent-cockpit (config, daemon, CLI, launcher generator)</span>
+python3 scripts/install_runtime.py
+
+<span class="c"># start it, then check health</span>
+python3 ~/.agent-cockpit/bin/cockpitd.py   --config ~/.agent-cockpit/cockpit.json
+python3 ~/.agent-cockpit/bin/cockpitctl.py --config ~/.agent-cockpit/cockpit.json health</pre>
+    </div>
+    <p class="sub" style="margin-top:16px;font-size:14px">
+      Requires Python 3.9+ and the Stream Deck application. <code>tmux</code>, a particular terminal,
+      and the Stream Deck SDK are optional and only needed for the mode you choose. Full matrix in
+      <a href="https://github.com/cskwork/streamdeck-agent-cockpit/blob/main/INSTALL.md" style="color:var(--accent)">INSTALL.md</a>.
+    </p>
+  </div>
+</section>
+
+<section id="verify">
+  <div class="wrap">
+    <div class="sec-head">
+      <div class="sec-tag">Verification</div>
+      <h2>Checks that run, and checks only you can run.</h2>
+      <p class="sub">
+        The repo separates what CI proves from what only a physical device can prove, and says so
+        out loud rather than reporting a green tick for both.
+      </p>
+    </div>
+    <div class="grid g2">
+      <div>
+        <h3 style="margin-bottom:12px">Automated</h3>
+        <div class="codeblock">
+<pre>python3 -m compileall -q bin scripts tests
+python3 -m unittest discover -s tests -v
+python3 scripts/validate_cockpit.py assets/cockpit.example.json
+python3 scripts/smoke_test.py</pre>
+        </div>
+      </div>
+      <div>
+        <h3 style="margin-bottom:12px">On-device, by you</h3>
+        <ul class="check-list">
+          <li>Tap focuses an existing session; tap launches a missing one, then focuses it</li>
+          <li>Hold does not fire on a normal tap</li>
+          <li>Interrupt reaches only the intended session</li>
+          <li>Daemon-down and invalid-control states are visible on the key</li>
+          <li>Restarting Stream Deck, the daemon, and the terminal corrupts nothing</li>
+          <li>Uninstalling leaves unrelated profiles intact</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="limits">
+  <div class="wrap">
+    <div class="sec-head">
+      <div class="sec-tag">Deliberate limitations</div>
+      <h2>What this does not do.</h2>
+    </div>
+    <div class="grid g2">
+      <div class="card"><h3>No live state in launcher-only mode</h3><p>Launchers cannot display state, distinguish a hold, or read a dial. That is the price of needing no compiled plugin.</p></div>
+      <div class="card"><h3>No prebuilt plugin binary</h3><p>The plugin template must be adapted and built with the current official Stream Deck SDK on your machine.</p></div>
+      <div class="card"><h3>No arbitrary profile editing</h3><p>The official plugin boundary offers no safe generic API for rewriting profiles or driving unrelated third-party actions. Multi Actions are the documented path.</p></div>
+      <div class="card"><h3>Focus is terminal-specific</h3><p>Whether a window truly comes forward depends on your terminal and OS, and must be verified on the actual device.</p></div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap foot-in">
+    <span>MIT · v3.0.0 · built for people who would rather press a key than alt-tab.</span>
+    <span class="foot-links">
+      <a href="https://github.com/cskwork/streamdeck-agent-cockpit">Repository</a>
+      <a href="https://github.com/cskwork/streamdeck-agent-cockpit/blob/main/INSTALL.md">Install</a>
+      <a href="https://github.com/cskwork/streamdeck-agent-cockpit/blob/main/skills/streamdeck-agent-cockpit/SKILL.md">SKILL.md</a>
+      <a href="https://github.com/cskwork/streamdeck-agent-cockpit/blob/main/CHANGELOG.md">Changelog</a>
+    </span>
+  </div>
+</footer>
+
+<script>
+  // install tabs
+  const tabs = document.querySelectorAll('.tab');
+  tabs.forEach(t => t.addEventListener('click', () => {
+    tabs.forEach(o => {
+      o.setAttribute('aria-selected', String(o === t));
+      document.getElementById(o.dataset.panel).hidden = (o !== t);
+    });
+  }));
+
+  // copy buttons
+  document.querySelectorAll('.copy').forEach(b => b.addEventListener('click', async () => {
+    try {
+      await navigator.clipboard.writeText(b.dataset.copy);
+      const prev = b.textContent;
+      b.textContent = 'copied';
+      setTimeout(() => { b.textContent = prev; }, 1400);
+    } catch (e) {
+      b.textContent = 'copy failed';
+    }
+  }));
+</script>
+</body>
+</html>

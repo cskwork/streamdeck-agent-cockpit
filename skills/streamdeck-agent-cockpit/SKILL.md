@@ -1,0 +1,266 @@
+---
+name: streamdeck-agent-cockpit
+description: Use when a user wants a standalone Stream Deck cockpit for Claude Code, Codex, Pi, JCode, or other terminal agents: personalize buttons, launch/focus/resume/interrupt named sessions, display trustworthy local status, create or extend a Stream Deck plugin, or map recurring local workflows to controls. The core path must work without streamdeck-mcp, any MCP server, AgentDeck, or a cloud service.
+---
+
+# Stream Deck Agent Cockpit
+
+Build and maintain one **standalone, locally controlled** Stream Deck cockpit for terminal-based coding agents and personal automations.
+
+## Non-negotiable architecture
+
+The core path is:
+
+```text
+Stream Deck action or launcher
+        ↓
+local cockpit daemon (`cockpitd`)
+        ↓
+predeclared command/session adapter
+        ↓
+Claude Code · Codex · Pi · JCode · another CLI
+```
+
+- Do not require `streamdeck-mcp`, another MCP server, AgentDeck, or a model at runtime.
+- Use the official Stream Deck SDK only when dynamic labels, icons, dials, long-press handling, or live state are needed.
+- Launcher-only mode must remain usable for static tap actions without compiling a plugin.
+- Own only this skill's config, daemon, launchers, plugin UUID, action instances, and optional bundled profile. Never edit undocumented Stream Deck profile databases or unrelated actions.
+- Do not promise generic control of third-party Stream Deck plugins. Integrate them only through a documented plugin/service API or a user-configured Stream Deck Multi Action.
+- Bind controls by stable logical `controlId`, never by physical row/column coordinates in the cockpit config.
+- Execute only commands declared in local configuration. Never accept arbitrary shell text from a button press or HTTP request.
+- Bind the daemon to loopback and authenticate local requests with a file-backed token.
+- Never infer “thinking”, “done”, “blocked”, a percentage, or semantic progress from process presence, elapsed time, terminal title, or scraped terminal text.
+
+## Read only what the task needs
+
+| Need | Read |
+|---|---|
+| Architecture or mode selection | `references/architecture.md` |
+| Configuring buttons and gestures | `references/control-model.md` |
+| Claude/Codex/Pi/JCode sessions | `references/session-adapters.md` |
+| Status and progress semantics | `references/progress-contract.md` |
+| Building or extending the plugin | `references/plugin-playbook.md` |
+| Security review | `references/safety.md` |
+| Final checks and rollback | `references/verification.md` |
+
+## Workflow
+
+### 1. Orient before changing anything
+
+Inspect the local environment and the closest existing implementation:
+
+```bash
+python3 scripts/probe_environment.py --json
+```
+
+Determine:
+
+- OS and Stream Deck application availability.
+- Device model only when it changes the design; do not assume key count or encoder support.
+- Installed terminal and multiplexer: `tmux`, WezTerm, iTerm2, Terminal, Windows Terminal, or another explicit target.
+- Installed agent commands and their **local** `--help` output. Do not assume resume/server flags from memory.
+- Existing `.agent-cockpit/cockpit.json`, plugin source, launchers, or profile owned by this project.
+- Which signals can report semantic state. If none exist, plan coarse state only.
+
+Produce a short capability ledger:
+
+| Capability | Available | Evidence | Chosen fallback |
+|---|---:|---|---|
+| Static tap action | | | |
+| Named session launch | | | |
+| Session focus | | | |
+| Safe interrupt | | | |
+| Dynamic key rendering | | | |
+| Semantic state events | | | |
+| Encoder support | | | |
+
+### 2. Choose the smallest mode that satisfies the request
+
+**Launcher-only mode**
+
+Use Stream Deck's built-in action to open generated `.command`/`.cmd` launchers. Choose this when static tap actions are sufficient. It needs Python plus the user's terminal/session tools, but no custom plugin.
+
+**Native-plugin mode**
+
+Use one local generic action bound to a `controlId`. Choose this for dynamic titles/icons, state polling, long press, dial rotation, dial press, or per-control settings. The plugin talks only to `cockpitd` on loopback.
+
+Do not choose native-plugin mode merely because it is more sophisticated.
+
+### 3. Model the cockpit before implementing it
+
+Create or update configuration version 3. Start from `assets/cockpit.example.json` and validate against `assets/cockpit.schema.json`.
+
+Keep these concepts separate:
+
+- `sessions`: named agent processes or multiplexer sessions.
+- `commands`: reusable local automations.
+- `controls`: button/dial identities and gesture-to-operation mappings.
+- `appearance`: presentation by verified state; never execution logic.
+
+Use IDs such as:
+
+```text
+session.claude.backend
+session.codex.review
+session.pi.research
+session.jcode.frontend
+workflow.test-current
+workflow.open-dashboard
+```
+
+For every control, document:
+
+| Control ID | Label | Tap | Hold | Dial | State source | Destructive? |
+|---|---|---|---|---|---|---:|
+
+Before writing, reject:
+
+- Duplicate or unstable IDs.
+- Physical key coordinates in config.
+- Embedded API keys, passwords, bearer tokens, or copied terminal output.
+- Shell-string commands such as `bash -c`, `sh -c`, `cmd /c`, or PowerShell command strings. Wrap necessary logic in a reviewed script and invoke that script as an argument array.
+- An interrupt, stop, delete, deploy, merge, or kill gesture without an appropriate confirmation policy.
+- A semantic state display backed only by a PID, tmux session, timer, or terminal scraping.
+
+Validate:
+
+```bash
+python3 scripts/validate_cockpit.py path/to/cockpit.json
+```
+
+### 4. Implement the standalone local runtime
+
+Use the bundled stdlib-only reference runtime unless the repository already has an equivalent, better-tested component:
+
+```bash
+python3 bin/cockpitd.py --config path/to/cockpit.json
+python3 bin/cockpitctl.py --config path/to/cockpit.json health
+python3 bin/cockpitctl.py --config path/to/cockpit.json controls
+```
+
+Runtime rules:
+
+- The HTTP API exposes named operations, never raw command execution.
+- Commands are argv arrays and execute with `shell=False`.
+- Paths and environment references resolve locally at invocation time.
+- Responses omit command stdout/stderr by default.
+- State reports have a source, timestamp, TTL, and stale behavior.
+- A failed daemon or unavailable terminal must degrade to an honest unavailable state, not a false success.
+
+For launcher-only mode:
+
+```bash
+python3 scripts/generate_launchers.py \
+  --config path/to/cockpit.json \
+  --output path/to/launchers
+```
+
+Map the generated tap launcher through the Stream Deck application. Do not automate undocumented profile storage.
+
+### 5. Implement session switching conservatively
+
+For each Claude Code, Codex, Pi, or JCode session:
+
+1. Give it a stable session ID and terminal target.
+2. Probe whether the target exists.
+3. Configure `launch`, `focus`, and optional `resume` using the installed CLI's verified syntax.
+4. Map tap to `focus_or_launch` by default.
+5. Map interrupt to hold/explicit confirmation, not an accidental tap.
+6. Keep kill/termination absent unless the user expressly requires it.
+7. Verify focus behavior in the actual terminal; “process started” is not proof the desired window became active.
+
+Prefer a multiplexer for durable sessions. `tmux` is the bundled reference adapter, not a mandatory dependency. A custom adapter must provide the same contract: probe, launch, focus, optional resume, interrupt, and evidence-backed state.
+
+### 6. Track progress without inventing it
+
+There are two state classes:
+
+**Coarse state** — verified from infrastructure:
+
+```text
+offline · present · unavailable
+```
+
+**Semantic state** — accepted only from an agent hook, RPC/event adapter, workflow callback, or explicit reporter:
+
+```text
+idle · running · needs_attention · blocked · succeeded · failed
+```
+
+Hook-compatible reporting:
+
+```bash
+python3 bin/cockpitctl.py --config path/to/cockpit.json \
+  report session.claude.backend running \
+  --label "Running tests" --ttl 180
+```
+
+A percentage is allowed only when the workflow emits a real numerator/denominator or explicit percentage. Otherwise show a state label, activity, age, and source.
+
+### 7. Build or extend the Stream Deck plugin only when required
+
+Use the current official Stream Deck SDK scaffold, then adapt `templates/streamdeck-plugin/`.
+
+The preferred plugin design is one generic action:
+
+- Property Inspector setting: `controlId`.
+- Optional advanced settings: daemon URL and token-file override.
+- Tap/hold/dial events become named gestures sent to the daemon.
+- The plugin periodically fetches the bound control state and renders title/icon/feedback.
+- A missing control, invalid token, or stopped daemon visibly reports an error.
+- Unrelated profiles and third-party actions remain untouched.
+- Another plugin is configurable only through its documented API; otherwise provide manual Multi Action instructions rather than reverse-engineering its settings.
+
+Do not create one compiled action per project or agent unless the user needs distinct marketplace-visible actions.
+
+### 8. Verify behavior, safety, and rollback
+
+Run all repository-appropriate checks plus the bundled checks:
+
+```bash
+python3 -m compileall -q bin scripts tests
+python3 -m unittest discover -s tests -v
+python3 scripts/validate_cockpit.py assets/cockpit.example.json
+python3 scripts/smoke_test.py
+```
+
+For a plugin implementation, also run its formatter, type-checker, tests, production build, and official Stream Deck validation/package command from the installed SDK.
+
+On-device verification must cover:
+
+- Tap focuses an existing session.
+- Tap launches a missing session and then focuses it.
+- Hold does not trigger on a normal tap.
+- Interrupt affects only the intended session.
+- Daemon-down and invalid-control states are visible.
+- Stale semantic reports fall back to coarse state.
+- Button labels/icons remain legible on the actual device.
+- Restarting Stream Deck, the daemon, and the terminal does not corrupt config.
+- Uninstalling the plugin/runtime leaves unrelated profiles intact.
+
+## Output contract
+
+Return:
+
+1. Mode selected and why.
+2. Capability ledger.
+3. Control map.
+4. Files created or changed.
+5. Exact installation/start commands.
+6. Verification evidence, including what was checked on-device versus locally.
+7. Known limitations and state-evidence tier.
+8. Rollback/uninstall steps.
+
+## Completion gate
+
+The task is complete only when:
+
+- The core workflow has no MCP or AgentDeck runtime dependency.
+- Configuration version 3 validates.
+- Every button invokes only a predeclared local operation.
+- Existing Stream Deck data outside the owned plugin/profile remains untouched.
+- Session launch/focus behavior is verified, or the unverified part is named precisely.
+- Semantic status is evidence-backed and expires when stale.
+- Destructive gestures are guarded.
+- Automated checks pass.
+- Required physical-device checks are explicitly separated from checks that were actually run.

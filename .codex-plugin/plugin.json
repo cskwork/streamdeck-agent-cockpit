@@ -1,0 +1,37 @@
+{
+  "name": "streamdeck-agent-cockpit",
+  "version": "3.0.0",
+  "description": "Turn a Stream Deck into a standalone local cockpit for Claude Code, Codex, Pi, JCode, and other terminal agents: launch, focus, resume, and interrupt named sessions with evidence-backed status. Use when wiring hardware controls to local agent sessions.",
+  "author": {
+    "name": "cskwork",
+    "url": "https://github.com/cskwork"
+  },
+  "homepage": "https://cskwork.github.io/streamdeck-agent-cockpit/",
+  "repository": "https://github.com/cskwork/streamdeck-agent-cockpit",
+  "license": "MIT",
+  "keywords": [
+    "streamdeck-agent-cockpit",
+    "streamdeck",
+    "skill",
+    "claude-code",
+    "codex"
+  ],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Stream Deck Agent Cockpit",
+    "shortDescription": "Standalone local Stream Deck cockpit for Claude Code, Codex, Pi, and JCode sessions.",
+    "longDescription": "Turn a Stream Deck into a standalone local cockpit for Claude Code, Codex, Pi, JCode, and other terminal agents: launch, focus, resume, and interrupt named sessions with evidence-backed status. No MCP server, no AgentDeck, no cloud service on the core path.",
+    "developerName": "cskwork",
+    "category": "Productivity",
+    "capabilities": [
+      "Instructions"
+    ],
+    "websiteURL": "https://github.com/cskwork/streamdeck-agent-cockpit",
+    "defaultPrompt": [
+      "Use streamdeck-agent-cockpit for this task."
+    ],
+    "brandColor": "#10B981",
+    "composerIcon": "./logo.png",
+    "logo": "./logo.png"
+  }
+}
