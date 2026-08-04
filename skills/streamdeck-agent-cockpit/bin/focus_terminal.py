@@ -1,9 +1,14 @@
 #!/usr/bin/env python3
-"""Focus the macOS terminal pane that owns a claimed slot.
+"""Focus the terminal pane that owns a claimed slot.
 
-Matches on the tty recorded when the slot was claimed, because agent session
-ids are invisible to the terminal emulator. Supports iTerm2 and Apple Terminal;
+On macOS this matches the tty recorded when the slot was claimed, because agent
+session ids are invisible to the terminal emulator. iTerm2 and Apple Terminal
 both expose a documented `tty` property through AppleScript.
+
+Windows Terminal exposes no tty, so it is addressed by exact tab title instead:
+pass `--tab-title` and the bundled UI Automation script selects that tab. Since
+the title is supplied rather than discovered, that path does not consult slot
+bookkeeping and works whether or not a claim exists.
 
 Exits non-zero when the slot is unclaimed or the pane is gone, so a key reports
 an honest failure instead of a false success.
@@ -12,6 +17,7 @@ an honest failure instead of a false success.
 from __future__ import annotations
 
 import argparse
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -64,6 +70,33 @@ end run
 
 APPS = (("iTerm2", ITERM2), ("Terminal", APPLE_TERMINAL))
 
+WINDOWS_TERMINAL_SCRIPT = Path(__file__).resolve().parent / "windows_terminal_uia.ps1"
+
+
+def focus_windows_terminal(tab_title: str) -> Optional[str]:
+    """Select a Windows Terminal tab by exact title. Returns a problem or None.
+
+    Windows Terminal has no scriptable tty, so the tab title is the only stable
+    handle an external process can address. The script matches case-sensitively
+    and exits non-zero when nothing matches, so a wrong title fails loudly.
+    """
+    if not WINDOWS_TERMINAL_SCRIPT.exists():
+        return f"missing helper script: {WINDOWS_TERMINAL_SCRIPT}"
+    executable = "powershell.exe" if os.name == "nt" else "pwsh"
+    try:
+        result = subprocess.run(
+            [executable, "-NoProfile", "-ExecutionPolicy", "Bypass",
+             "-File", str(WINDOWS_TERMINAL_SCRIPT), "-TabTitle", tab_title],
+            capture_output=True, text=True, timeout=20,
+        )
+    except FileNotFoundError:
+        return f"{executable} not found"
+    except (OSError, subprocess.SubprocessError) as exc:
+        return f"{executable} failed: {exc}"
+    if result.returncode != 0:
+        return result.stderr.strip() or f"exit {result.returncode}"
+    return None if result.stdout.strip() == "focused" else "not_found"
+
 
 def is_running(app: str) -> bool:
     try:
@@ -91,10 +124,23 @@ def try_focus(script: str, tty: str) -> Optional[str]:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--slot", required=True, help="Session id declared in cockpit.json")
+    parser.add_argument("--slot", help="Session id declared in cockpit.json")
     parser.add_argument("--app", choices=[name for name, _ in APPS],
-                        help="Restrict to one terminal application")
+                        help="Restrict to one terminal application (macOS)")
+    parser.add_argument("--tab-title",
+                        help="Exact Windows Terminal tab title to select instead of a tty")
     args = parser.parse_args()
+
+    if args.tab_title:
+        problem = focus_windows_terminal(args.tab_title)
+        if problem is None:
+            return 0
+        print(f"Windows Terminal: {problem}", file=sys.stderr)
+        return 1
+
+    if not args.slot:
+        print("either --slot or --tab-title is required", file=sys.stderr)
+        return 1
 
     claim = slotclaims.load().get("slots", {}).get(args.slot)
     if not slotclaims.claim_is_live(claim):

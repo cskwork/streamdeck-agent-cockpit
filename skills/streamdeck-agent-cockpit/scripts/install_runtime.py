@@ -20,6 +20,7 @@ MANAGED_BIN = [
     ROOT / "bin/slotclaims.py",
     ROOT / "bin/claim_probe.py",
     ROOT / "bin/focus_terminal.py",
+    ROOT / "bin/windows_terminal_uia.ps1",
     ROOT / "bin/claude_hook.py",
     ROOT / "bin/install_claude_hooks.py",
     ROOT / "scripts/validate_cockpit.py",

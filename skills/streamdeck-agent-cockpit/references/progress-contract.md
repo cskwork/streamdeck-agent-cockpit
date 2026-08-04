@@ -65,13 +65,47 @@ usable signal — Claude Code writes a spinner and the current task into it — 
 it cannot distinguish "thinking" from "waiting for approval", and a wrong green
 light is worse than no light.
 
+Registered by default:
+
 | Hook event | State | TTL | Meaning |
 |---|---|---|---|
 | `SessionStart` | `idle` | 7200 | Session exists, not working |
 | `UserPromptSubmit` | `running` | 1800 | A turn is in flight |
-| `Notification` (permission / idle / elicitation) | `needs_attention` | 3600 | Blocked on the user |
+| `Notification` | see below | 3600 | Usually blocked on the user |
 | `Stop` | `idle` | 7200 | Turn finished, user's move |
 | `SessionEnd` | — | — | Releases the slot; key falls back to coarse |
+
+`Stop` means the turn ended, not that the user's task succeeded, so it reports
+`idle` rather than a success state.
+
+Added by `install_claude_hooks.py --extended`:
+
+| Hook event | State | TTL |
+|---|---|---|
+| `PreToolUse`, `PostToolUse`, `PostToolUseFailure` | `running` | 1800 |
+| `PermissionRequest` | `needs_attention` | 3600 |
+| `PermissionDenied` | `blocked` | 3600 |
+| `Elicitation` | `needs_attention` | 3600 |
+| `ElicitationResult` | `running` | 1800 |
+| `SubagentStart`, `SubagentStop` | `running` | 1800 |
+| `TaskCreated`, `TaskCompleted` | `running` | 1800 |
+| `PreCompact`, `PostCompact` | `running` | 1800 |
+| `StopFailure` | `failed` | 3600 |
+
+These are opt-in because they run the bridge on every tool call. `blocked` and
+`failed` are only reachable with them registered.
+
+`Notification` carries a documented `notification_type`; match it exactly when
+present and fall back to the message text otherwise. `permission_prompt`,
+`idle_prompt`, `agent_needs_input`, and `elicitation_dialog` mean
+`needs_attention`; `elicitation_complete` means `running`; `agent_completed`
+means `idle`.
+
+**Verify event names against the installed build, never from memory.** A hook
+registered under a name the harness does not dispatch fails silently — the key
+simply never updates, which is indistinguishable from an idle session. The names
+above were each confirmed in the hook reference Claude Code ships or by its
+dispatcher symbol.
 
 The label carries the project directory name, not prompt text, file contents, or
 model output. See the redaction rule above.

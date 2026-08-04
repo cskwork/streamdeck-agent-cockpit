@@ -83,11 +83,30 @@ adapter:
 Never evict a live claim to make room. A key that silently switches to a
 different session is worse than a session that is simply not shown.
 
-This path is POSIX-only, and the bundled focus helper is macOS-only. Ancestry
-walking needs `ps` and a tty; `slotclaims._ps` returns `None` on other platforms
-rather than risking a blocking subprocess, which leaves the focus command
-reporting an honest failure. Other platforms need their own probe and focus
-commands behind the same `command` adapter.
+Slot discovery is POSIX-only. Ancestry walking needs `ps` and a tty;
+`slotclaims._ps` returns `None` on other platforms rather than risking a
+blocking subprocess. Liveness itself is cross-platform: `pid_alive` uses
+`os.kill(pid, 0)` on POSIX and `OpenProcess`/`GetExitCodeProcess` on Windows,
+where `ERROR_ACCESS_DENIED` still proves the process exists.
+
+### Windows Terminal
+
+Windows Terminal exposes no scriptable tty, so tty matching has nothing to match
+on. A tab is addressed by its exact title instead:
+
+```text
+focus_terminal.py --tab-title "Claude · Main"
+```
+
+`windows_terminal_uia.ps1` walks the UI Automation tree for a `TabItem` whose
+name matches exactly, selects it, and raises the window. Matching is
+case-sensitive and the script exits non-zero when nothing matches, so a stale
+title fails loudly instead of focusing the wrong tab.
+
+Because the title is supplied rather than discovered, this path does not consult
+slot bookkeeping — it works whether or not a claim exists, and correspondingly
+proves nothing about the session behind the tab. Set the title deliberately (the
+tab title is under the user's control) and keep it unique.
 
 ### macOS terminal automation
 

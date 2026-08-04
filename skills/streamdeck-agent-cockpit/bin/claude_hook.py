@@ -29,12 +29,45 @@ AGENT = "claude"
 SLOT_COUNT = int(os.environ.get("COCKPIT_SLOT_COUNT", "4"))
 
 # hook_event_name -> (state, detail, ttl seconds)
+#
+# Every event below was confirmed against the installed Claude Code build,
+# either in the hook reference it ships or by its hook dispatcher symbol.
+# Do not add an event on the strength of a remembered name; check first.
+#
+# A Stop event means the turn ended, not that the user's task succeeded, so it
+# reports idle rather than a success state.
 EVENT_MAP = {
     "SessionStart": ("idle", "session started", 7200),
     "UserPromptSubmit": ("running", "working", 1800),
+    "PreToolUse": ("running", "running a tool", 1800),
+    "PostToolUse": ("running", "working", 1800),
+    "PostToolUseFailure": ("running", "handling a tool failure", 1800),
+    "PermissionRequest": ("needs_attention", "approval required", 3600),
+    "PermissionDenied": ("blocked", "permission denied", 3600),
+    "Elicitation": ("needs_attention", "input requested", 3600),
+    "ElicitationResult": ("running", "input received", 1800),
+    "SubagentStart": ("running", "subagent running", 1800),
+    "SubagentStop": ("running", "working", 1800),
+    "TaskCreated": ("running", "task created", 1800),
+    "TaskCompleted": ("running", "working", 1800),
+    "PreCompact": ("running", "compacting context", 1800),
+    "PostCompact": ("running", "working", 1800),
     "Stop": ("idle", "response complete", 7200),
+    "StopFailure": ("failed", "turn stopped with an error", 3600),
 }
 
+# Notification hooks carry a documented `notification_type`. Match it exactly
+# when present.
+NOTIFICATION_TYPES = {
+    "permission_prompt": ("needs_attention", "approval required", 3600),
+    "idle_prompt": ("needs_attention", "waiting for input", 3600),
+    "agent_needs_input": ("needs_attention", "input requested", 3600),
+    "elicitation_dialog": ("needs_attention", "input requested", 3600),
+    "elicitation_complete": ("running", "input received", 1800),
+    "agent_completed": ("idle", "response complete", 7200),
+}
+
+# Fallback for payloads that carry only a human-readable message.
 # Substring of the Notification message -> (state, detail, ttl seconds)
 NOTIFICATION_MAP = (
     ("permission", ("needs_attention", "approval required", 3600)),
@@ -56,6 +89,9 @@ def resolve(event: str, payload: Dict[str, Any]) -> Optional[Tuple[str, str, int
     if event in EVENT_MAP:
         return EVENT_MAP[event]
     if event == "Notification":
+        kind = str(payload.get("notification_type") or payload.get("notificationType") or "").lower()
+        if kind in NOTIFICATION_TYPES:
+            return NOTIFICATION_TYPES[kind]
         message = str(payload.get("message") or "").lower()
         for needle, result in NOTIFICATION_MAP:
             if needle in message:

@@ -18,7 +18,7 @@
 
 <p align="center">
   <img alt="license" src="https://img.shields.io/badge/license-MIT-10B981">
-  <img alt="version" src="https://img.shields.io/badge/version-3.1.1-10B981">
+  <img alt="version" src="https://img.shields.io/badge/version-3.2.0-10B981">
   <img alt="python" src="https://img.shields.io/badge/python-3.9%2B%20stdlib%20only-10B981">
   <img alt="no mcp" src="https://img.shields.io/badge/MCP-not%20required-10B981">
 </p>
@@ -297,16 +297,26 @@ Back up your settings file before the first write. State then comes from hook ev
 | `Notification` (permission, idle, elicitation) | `CHECK` |
 | `SessionEnd` | slot released, key returns to `OFF` |
 
+Want finer detail? `--extended` also registers the tool, permission, elicitation, subagent, task, and compaction events, so a key can show `BLOCKED` when permission is denied and `FAILED` when a turn ends in error. The trade is that the bridge then runs on every tool call, so start without it:
+
+```bash
+python3 ~/.agent-cockpit/bin/install_claude_hooks.py --extended --dry-run
+```
+
 Each key label carries the session's project directory name, never prompt text or model output.
 
-Tapping a slot focuses the owning pane. `focus_terminal.py` supports iTerm2 and Apple Terminal, matching on the tty recorded when the slot was claimed.
+Tapping a slot focuses the owning pane. On macOS `focus_terminal.py` supports iTerm2 and Apple Terminal, matching on the tty recorded when the slot was claimed. Windows Terminal has no scriptable tty, so it is addressed by exact tab title instead:
+
+```bash
+python3 ~/.agent-cockpit/bin/focus_terminal.py --tab-title "Claude · Main"
+```
 
 Known limits of this path, all deliberate:
 
 - **Sessions already running when you install the bridge stay invisible** until they restart.
 - **Slots are finite.** When all are held by live sessions, a new one is ignored rather than evicting someone.
 - **No interrupt gesture on attached slots.** There is no supported way to send a scoped `Ctrl-C` through terminal automation, so interrupt stays on tmux-backed sessions where `tmux send-keys` is exact.
-- **macOS only.** The bundled probe and focus helpers depend on `ps` ancestry and AppleScript; other platforms need their own commands behind the same adapter.
+- **Slot discovery is macOS only.** Binding a running session to a slot depends on `ps` ancestry and AppleScript. The Windows Terminal focus path works, but the title is something you set rather than something discovered, so it proves nothing about the session behind that tab.
 - **Terminal titles are never scraped.** They look like a usable signal but cannot separate "thinking" from "waiting for approval".
 
 ## Verification
