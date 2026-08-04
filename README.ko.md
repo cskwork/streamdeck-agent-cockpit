@@ -18,7 +18,7 @@
 
 <p align="center">
   <img alt="license" src="https://img.shields.io/badge/license-MIT-10B981">
-  <img alt="version" src="https://img.shields.io/badge/version-3.1.0-10B981">
+  <img alt="version" src="https://img.shields.io/badge/version-3.1.1-10B981">
   <img alt="python" src="https://img.shields.io/badge/python-3.9%2B%20stdlib%20only-10B981">
   <img alt="no mcp" src="https://img.shields.io/badge/MCP-not%20required-10B981">
 </p>
@@ -305,6 +305,7 @@ python3 ~/.agent-cockpit/bin/install_claude_hooks.py
 - **브리지를 설치하기 전부터 돌던 세션은 보이지 않습니다.** 해당 세션을 재시작해야 잡힙니다.
 - **슬롯 수는 정해져 있습니다.** 전부 사용 중이면 새 세션은 무시됩니다. 기존 세션을 밀어내지 않습니다.
 - **붙잡은 슬롯에는 interrupt 제스처가 없습니다.** 터미널 자동화로 `Ctrl-C`를 안전하게 보낼 방법이 없어서, interrupt는 `tmux send-keys`가 정확히 동작하는 tmux 세션에만 둡니다.
+- **macOS 전용입니다.** 기본 probe·포커스 헬퍼는 `ps` 조상 추적과 AppleScript에 의존합니다. 다른 플랫폼은 같은 어댑터에 자체 명령을 넣어야 합니다.
 - **터미널 제목은 읽지 않습니다.** 쓸 만해 보이지만 "생각 중"과 "승인 대기 중"을 구분하지 못합니다.
 
 ## 검증
@@ -328,7 +329,7 @@ python3 scripts/smoke_test.py
 - 공식 플러그인 경계는 임의의 프로필을 편집하거나 관련 없는 서드파티 플러그인 액션을 제어할 안전한 범용 API를 제공하지 않습니다.
 - 터미널 포커스 동작은 터미널마다 다르며 실제 장치에서 확인이 필요합니다.
 - 훅/RPC/워크플로 보고가 없으면 세션 상태는 개략 수준에 머무릅니다.
-- 붙잡은 세션은 정해진 수의 슬롯만 쓰고 interrupt 제스처가 없으며, 레퍼런스 훅 브리지는 Claude Code만 지원합니다.
+- 붙잡은 세션은 정해진 수의 슬롯만 쓰고 interrupt 제스처가 없으며, 레퍼런스 훅 브리지는 Claude Code만, 기본 probe·포커스 헬퍼는 macOS만 지원합니다.
 
 ## 보안 경계
 

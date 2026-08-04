@@ -83,6 +83,12 @@ adapter:
 Never evict a live claim to make room. A key that silently switches to a
 different session is worse than a session that is simply not shown.
 
+This path is POSIX-only, and the bundled focus helper is macOS-only. Ancestry
+walking needs `ps` and a tty; `slotclaims._ps` returns `None` on other platforms
+rather than risking a blocking subprocess, which leaves the focus command
+reporting an honest failure. Other platforms need their own probe and focus
+commands behind the same `command` adapter.
+
 ### macOS terminal automation
 
 iTerm2 and Apple Terminal both expose a documented `tty` property through

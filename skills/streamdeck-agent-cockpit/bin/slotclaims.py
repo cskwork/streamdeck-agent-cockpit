@@ -74,7 +74,14 @@ def claim_is_live(claim: Any) -> bool:
 
 
 def _ps(pid: int) -> Optional[Tuple[int, str, str]]:
-    """Return (ppid, comm, tty) for pid, or None when it is gone."""
+    """Return (ppid, comm, tty) for pid, or None when it is gone.
+
+    POSIX only. Attaching to a running session depends on `ps` ancestry and a
+    tty, neither of which Windows provides in this form, so callers get None
+    rather than a subprocess that may block.
+    """
+    if os.name != "posix":
+        return None
     try:
         result = subprocess.run(
             ["ps", "-o", "ppid=,comm=,tty=", "-p", str(pid)],
@@ -95,6 +102,9 @@ def _ps(pid: int) -> Optional[Tuple[int, str, str]]:
 
 def discover_owner() -> Dict[str, Any]:
     """Walk our own ancestry to find the owning terminal pane.
+
+    POSIX only; on other platforms this returns just the current pid and no
+    tty, which leaves `focus_terminal.py` reporting an honest failure.
 
     A hook runs as a descendant of the agent process, so the chain is reliable.
     Liveness is anchored on the `login` ancestor rather than the agent process:
