@@ -7,7 +7,8 @@ Distribution (first public release):
 - Restructured the repository as an installable skill package; payload lives under `skills/streamdeck-agent-cockpit/`.
 - Added Claude Code, Codex, agents-marketplace, Gemini CLI, and Cursor manifests.
 - Added `INSTALL.md` covering every supported harness plus the local runtime.
-- Added a GitHub Pages landing page under `docs/`.
+- Added a GitHub Pages landing page under `docs/`, with an English/Korean switch (English default, remembered per browser, deep-linkable via `?lang=ko`).
+- Added `README.ko.md`, linked from the English README.
 - Added CI: a Claude Code plugin load check, and byte-compile, unit tests, config validation, and smoke test on Linux/macOS/Windows for Python 3.9 and 3.12.
 
 Runtime:

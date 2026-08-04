@@ -23,6 +23,10 @@
   <img alt="no mcp" src="https://img.shields.io/badge/MCP-not%20required-10B981">
 </p>
 
+<p align="center">
+  <strong>English</strong> · <a href="README.ko.md">한국어</a>
+</p>
+
 ---
 
 A single portable skill and reference runtime for turning Stream Deck into a local cockpit for Claude Code, Codex, Pi, JCode, and other terminal-based agents.
