@@ -48,7 +48,12 @@ If the user explicitly approves terminal capture for debugging, make it temporar
 
 ## Profile integrity
 
-Do not edit undocumented Stream Deck profile stores. Back up only files this skill owns before replacement. On uninstall, remove only owned plugin/runtime/profile data.
+Do not edit undocumented Stream Deck profile stores by default. When a user
+explicitly requests a change to a user-owned macOS v3 page, use only
+`scripts/streamdeck_profile.py`: it verifies the named profile, creates a full
+timestamped backup, refuses occupied keys, and changes only the explicit page
+manifest. Never edit the root profile registry or unrelated pages/actions.
+On uninstall, remove only owned plugin/runtime/profile data.
 
 ## Supply chain
 
