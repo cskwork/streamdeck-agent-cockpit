@@ -61,7 +61,7 @@ When slots bind to sessions the user started by hand:
 
 1. Start a new agent session; confirm it claims a free slot and no other slot changes.
 2. Confirm the recorded tty matches the pane the emulator reports, not the agent's own tty.
-3. Tap the slot; confirm the correct pane comes forward.
+3. Tap the slot; confirm the correct pane comes forward. Embedded AppleScript is only a string until something runs it, so a syntax error survives every static check and surfaces only here — run `osacompile -o /dev/null -` over each script when changing one.
 4. Tap an unclaimed slot; confirm an honest failure rather than a silent no-op.
 5. Close the pane; confirm the slot probe reports `offline` within one poll.
 6. Fill every slot, then start one more session; confirm no live claim is evicted.

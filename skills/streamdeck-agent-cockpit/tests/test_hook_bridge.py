@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import subprocess
 import sys
 import unittest
 from pathlib import Path
@@ -53,6 +54,47 @@ class EventMappingTest(unittest.TestCase):
 
     def test_extended_events_are_opt_in(self) -> None:
         self.assertEqual(set(install_claude_hooks.EVENTS) & set(install_claude_hooks.EXTENDED_EVENTS), set())
+
+
+class AppleScriptTest(unittest.TestCase):
+    """An unbalanced block compiles to nothing and fails only at focus time.
+
+    The iTerm2 script shipped from 3.1.0 to 3.2.0 closed its innermost `repeat`
+    with `end tell`, so every focus attempt died with a syntax error that only
+    surfaced on a real key press. Structure is checked here instead.
+    """
+
+    def keywords(self, script: str) -> dict:
+        counts = {"tell": 0, "end tell": 0, "repeat": 0, "end repeat": 0, "if": 0, "end if": 0}
+        for line in script.splitlines():
+            stripped = line.strip()
+            if stripped.startswith("end "):
+                key = " ".join(stripped.split()[:2])
+                if key in counts:
+                    counts[key] += 1
+            else:
+                head = stripped.split(" ")[0]
+                if head in ("tell", "repeat", "if"):
+                    counts[head] += 1
+        return counts
+
+    def test_every_block_is_closed_by_its_own_keyword(self) -> None:
+        for name, script in focus_terminal.APPS:
+            counts = self.keywords(script)
+            for opener in ("tell", "repeat", "if"):
+                self.assertEqual(
+                    counts[opener], counts[f"end {opener}"],
+                    f"{name}: {counts[opener]} `{opener}` vs {counts[f'end {opener}']} `end {opener}`",
+                )
+
+    @unittest.skipUnless(sys.platform == "darwin", "osacompile is macOS only")
+    def test_scripts_compile(self) -> None:
+        for name, script in focus_terminal.APPS:
+            result = subprocess.run(
+                ["osacompile", "-o", "/dev/null", "-"],
+                input=script, capture_output=True, text=True, timeout=30,
+            )
+            self.assertEqual(result.returncode, 0, f"{name}: {result.stderr.strip()}")
 
 
 class WindowsTerminalFocusTest(unittest.TestCase):

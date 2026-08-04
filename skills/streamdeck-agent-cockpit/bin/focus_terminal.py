@@ -43,7 +43,7 @@ on run argv
           end if
         end repeat
       end repeat
-    end tell
+    end repeat
   end tell
   return "not_found"
 end run
