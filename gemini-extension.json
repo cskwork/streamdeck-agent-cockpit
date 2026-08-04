@@ -1,6 +1,6 @@
 {
   "name": "streamdeck-agent-cockpit",
-  "version": "3.0.0",
+  "version": "3.1.0",
   "description": "Turn a Stream Deck into a standalone local cockpit for Claude Code, Codex, Pi, JCode, and other terminal agents: launch, focus, resume, and interrupt named sessions with evidence-backed status. Use when wiring hardware controls to local agent sessions.",
   "contextFileName": "GEMINI.md"
 }

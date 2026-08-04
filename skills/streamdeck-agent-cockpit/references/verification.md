@@ -55,6 +55,20 @@ For every configured agent:
 
 Never claim step 3 passed merely because launch returned exit code 0.
 
+## Attached-session checks
+
+When slots bind to sessions the user started by hand:
+
+1. Start a new agent session; confirm it claims a free slot and no other slot changes.
+2. Confirm the recorded tty matches the pane the emulator reports, not the agent's own tty.
+3. Tap the slot; confirm the correct pane comes forward.
+4. Tap an unclaimed slot; confirm an honest failure rather than a silent no-op.
+5. Close the pane; confirm the slot probe reports `offline` within one poll.
+6. Fill every slot, then start one more session; confirm no live claim is evicted.
+7. Confirm a `Notification` event moves the key to `needs_attention` and that `Stop` clears it.
+
+Sessions started before the hook bridge was installed will not appear. State that as a limitation instead of retrying.
+
 ## Plugin checks
 
 - Invalid/missing `controlId` is visible.
@@ -67,6 +81,13 @@ Never claim step 3 passed merely because launch returned exit code 0.
 - Titles/icons fit on actual keys.
 - Encoder feedback and rotation direction are correct on target hardware.
 - Stream Deck restart reconnects cleanly.
+- Key text is drawn once, not doubled by both an image and a title.
+- The longest status label still fits the key without truncation.
+
+After any plugin code change, confirm the reload before re-checking hardware: a
+fresh `Plugin connected` entry with a newer timestamp in the application log.
+`streamdeck restart` reports success even when nothing was replaced, and
+continued daemon polling only proves the *old* process is alive.
 
 ## Rollback
 

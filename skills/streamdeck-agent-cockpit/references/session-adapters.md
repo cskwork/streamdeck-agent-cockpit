@@ -47,6 +47,59 @@ When tmux is unavailable, define:
 
 This supports WezTerm workspaces, iTerm automation, Windows Terminal, SSH jump hosts, or a custom session manager without changing the daemon API.
 
+## Attaching to sessions the user already started
+
+A cockpit that can only drive sessions it launched is half a cockpit. Most agent
+work already runs in terminal tabs the user opened by hand. Attaching to those
+is possible, but it is structurally weaker than a named multiplexer session and
+the design has to admit that.
+
+Three constraints drive the shape:
+
+1. **The daemon rejects reports for sessions absent from `cockpit.json`.** An
+   arbitrary session cannot register itself. Predeclare a fixed set of *slots*
+   (`session.<agent>.slot1` … `slotN`) and let a hook bind a live session id to
+   a free slot. Raising the count is a config edit, not a code change.
+2. **Agent CLIs are often launchers.** Claude Code execs `node`, so walking the
+   process ancestry and matching on the command name fails. Anchor liveness on
+   the `login` ancestor instead: it exits exactly when the terminal pane closes.
+3. **The pane tty is not always the agent tty.** A shell wrapper can allocate an
+   inner pty that the terminal emulator never sees, so `iTerm2` reports
+   `/dev/ttys002` while the agent runs on `/dev/ttys003`. Record the tty of the
+   `login` ancestor, which is the one the emulator knows.
+
+`slotclaims.py` implements the bookkeeping, `claim_probe.py` the coarse probe,
+and `focus_terminal.py` the focus operation. Slots use the generic `command`
+adapter:
+
+```json
+"adapter": {
+  "type": "command",
+  "probe": { "argv": ["/usr/bin/env", "python3", "~/.agent-cockpit/bin/claim_probe.py",
+                      "--slot", "session.claude.slot1"] }
+}
+```
+
+Never evict a live claim to make room. A key that silently switches to a
+different session is worse than a session that is simply not shown.
+
+### macOS terminal automation
+
+iTerm2 and Apple Terminal both expose a documented `tty` property through
+AppleScript, which is what makes tty matching viable. `focus_terminal.py` tries
+each running application in turn and exits non-zero when no pane matches, so a
+missing window reports an honest failure instead of a false success.
+
+Automation permission is requested by macOS on first use and is granted to the
+*calling* process, not to the cockpit. Verify focus from the daemon's own
+context, not only from an interactive shell.
+
+Do not add an interrupt gesture to an attached slot unless the terminal offers a
+supported way to send a scoped `Ctrl-C`. AppleScript `write text` is not that:
+it types into the session rather than signalling it. Leaving interrupt off a
+slot is the honest default; interrupt stays available on multiplexer-backed
+sessions, where `tmux send-keys` is exact.
+
 ## Focus behavior
 
 “Switch session” can mean different things:

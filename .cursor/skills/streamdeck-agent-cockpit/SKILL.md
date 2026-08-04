@@ -171,6 +171,15 @@ For each Claude Code, Codex, Pi, or JCode session:
 
 Prefer a multiplexer for durable sessions. `tmux` is the bundled reference adapter, not a mandatory dependency. A custom adapter must provide the same contract: probe, launch, focus, optional resume, interrupt, and evidence-backed state.
 
+Ask whether the user also wants sessions they started by hand — a Claude Code tab already open in iTerm2 — to appear on the deck. Most do, and a cockpit that only drives what it launched is half a cockpit. That path is available but weaker, so keep it separate from launch controls rather than merging the two:
+
+1. Predeclare slots (`session.<agent>.slot1` … `slotN`); an unlisted session cannot report to the daemon.
+2. Bind live sessions to slots with an agent hook, never by scraping terminal titles.
+3. Give slots `probe` and `focus` only. Leave interrupt to multiplexer-backed sessions.
+4. Add separate launch controls for new sessions, so both needs are covered without one weakening the other.
+
+Start from `assets/cockpit.live-sessions.example.json`, which combines four attached slots with one tmux launch control. See `references/session-adapters.md` for the ancestry and tty rules this depends on.
+
 ### 6. Track progress without inventing it
 
 There are two state classes:
@@ -194,6 +203,14 @@ python3 bin/cockpitctl.py --config path/to/cockpit.json \
   report session.claude.backend running \
   --label "Running tests" --ttl 180
 ```
+
+For Claude Code, `bin/claude_hook.py` is the reference bridge and
+`bin/install_claude_hooks.py` registers it append-only and idempotently. It maps
+`SessionStart`/`Stop` to `idle`, `UserPromptSubmit` to `running`, and
+`Notification` to `needs_attention`. Preview with `--dry-run`, back up the
+settings file before the first write, and tell the user that sessions already
+running when the bridge is installed stay invisible until they restart. Other
+agents need their own bridge; do not assume one exists.
 
 A percentage is allowed only when the workflow emits a real numerator/denominator or explicit percentage. Otherwise show a state label, activity, age, and source.
 

@@ -18,7 +18,7 @@
 
 <p align="center">
   <img alt="license" src="https://img.shields.io/badge/license-MIT-10B981">
-  <img alt="version" src="https://img.shields.io/badge/version-3.0.0-10B981">
+  <img alt="version" src="https://img.shields.io/badge/version-3.1.0-10B981">
   <img alt="python" src="https://img.shields.io/badge/python-3.9%2B%20stdlib%20only-10B981">
   <img alt="no mcp" src="https://img.shields.io/badge/MCP-not%20required-10B981">
 </p>
@@ -89,12 +89,18 @@ streamdeck-agent-cockpit/
     ├── SKILL.md
     ├── assets/
     │   ├── cockpit.example.json
+    │   ├── cockpit.live-sessions.example.json
     │   └── cockpit.schema.json
     ├── bin/
     │   ├── cockpitd.py
     │   ├── cockpitctl.py
     │   ├── focus_tmux.py
-    │   └── report_state.py
+    │   ├── report_state.py
+    │   ├── slotclaims.py            # slot bookkeeping for attached sessions
+    │   ├── claim_probe.py           # coarse probe for a claimed slot
+    │   ├── focus_terminal.py        # iTerm2 / Apple Terminal focus by tty
+    │   ├── claude_hook.py           # Claude Code hook → semantic state
+    │   └── install_claude_hooks.py  # append-only hook registration
     ├── scripts/
     │   ├── generate_launchers.py
     │   ├── install_runtime.py
@@ -263,6 +269,45 @@ python3 ~/.agent-cockpit/bin/report_state.py \
 
 When a report expires, the daemon falls back to coarse adapter state. A percentage is accepted only when explicitly reported by a real workflow.
 
+## Sessions you already have open
+
+The sections above cover sessions the cockpit launches. Agent work usually already runs in terminal tabs you opened yourself, and those can appear on the deck too — with live state, and without moving them into tmux.
+
+The daemon only accepts reports for sessions declared in `cockpit.json`, so a running session cannot register itself. Instead, predeclare a fixed number of **slots** and let a Claude Code hook bind live sessions to them. Start from [`cockpit.live-sessions.example.json`](skills/streamdeck-agent-cockpit/assets/cockpit.live-sessions.example.json), which pairs four attached slots with one tmux launch control:
+
+```bash
+cp skills/streamdeck-agent-cockpit/assets/cockpit.live-sessions.example.json \
+   ~/.agent-cockpit/cockpit.json
+python3 ~/.agent-cockpit/bin/validate_cockpit.py ~/.agent-cockpit/cockpit.json
+```
+
+Register the hook bridge — append-only, idempotent, and previewable:
+
+```bash
+python3 ~/.agent-cockpit/bin/install_claude_hooks.py --dry-run
+python3 ~/.agent-cockpit/bin/install_claude_hooks.py
+```
+
+Back up your settings file before the first write. State then comes from hook events only:
+
+| Hook event | Key shows |
+|---|---|
+| `SessionStart`, `Stop` | `IDLE` |
+| `UserPromptSubmit` | `RUN` |
+| `Notification` (permission, idle, elicitation) | `CHECK` |
+| `SessionEnd` | slot released, key returns to `OFF` |
+
+Each key label carries the session's project directory name, never prompt text or model output.
+
+Tapping a slot focuses the owning pane. `focus_terminal.py` supports iTerm2 and Apple Terminal, matching on the tty recorded when the slot was claimed.
+
+Known limits of this path, all deliberate:
+
+- **Sessions already running when you install the bridge stay invisible** until they restart.
+- **Slots are finite.** When all are held by live sessions, a new one is ignored rather than evicting someone.
+- **No interrupt gesture on attached slots.** There is no supported way to send a scoped `Ctrl-C` through terminal automation, so interrupt stays on tmux-backed sessions where `tmux send-keys` is exact.
+- **Terminal titles are never scraped.** They look like a usable signal but cannot separate "thinking" from "waiting for approval".
+
 ## Verification
 
 From `skills/streamdeck-agent-cockpit/`:
@@ -271,6 +316,7 @@ From `skills/streamdeck-agent-cockpit/`:
 python3 -m compileall -q bin scripts tests
 python3 -m unittest discover -s tests -v
 python3 scripts/validate_cockpit.py assets/cockpit.example.json
+python3 scripts/validate_cockpit.py assets/cockpit.live-sessions.example.json
 python3 scripts/smoke_test.py
 ```
 
@@ -283,6 +329,7 @@ Physical-device behavior still requires testing in the Stream Deck application a
 - The official plugin boundary does not provide a safe generic API for editing arbitrary profiles or controlling unrelated third-party plugin actions.
 - Terminal focus behavior is terminal-specific and requires on-device verification.
 - Without a hook/RPC/workflow report, session state is coarse only.
+- Attached sessions occupy a fixed number of slots and carry no interrupt gesture; the reference hook bridge covers Claude Code only.
 
 ## Security boundary
 

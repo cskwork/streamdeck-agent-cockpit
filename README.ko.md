@@ -18,7 +18,7 @@
 
 <p align="center">
   <img alt="license" src="https://img.shields.io/badge/license-MIT-10B981">
-  <img alt="version" src="https://img.shields.io/badge/version-3.0.0-10B981">
+  <img alt="version" src="https://img.shields.io/badge/version-3.1.0-10B981">
   <img alt="python" src="https://img.shields.io/badge/python-3.9%2B%20stdlib%20only-10B981">
   <img alt="no mcp" src="https://img.shields.io/badge/MCP-not%20required-10B981">
 </p>
@@ -89,12 +89,18 @@ streamdeck-agent-cockpit/
     ├── SKILL.md
     ├── assets/
     │   ├── cockpit.example.json
+    │   ├── cockpit.live-sessions.example.json
     │   └── cockpit.schema.json
     ├── bin/
     │   ├── cockpitd.py
     │   ├── cockpitctl.py
     │   ├── focus_tmux.py
-    │   └── report_state.py
+    │   ├── report_state.py
+    │   ├── slotclaims.py            # 붙잡은 세션의 슬롯 관리
+    │   ├── claim_probe.py           # 슬롯 점유 여부 probe
+    │   ├── focus_terminal.py        # tty로 iTerm2 / 터미널 포커스
+    │   ├── claude_hook.py           # Claude Code 훅 → 의미 상태
+    │   └── install_claude_hooks.py  # 훅 등록 (추가 전용)
     ├── scripts/
     │   ├── generate_launchers.py
     │   ├── install_runtime.py
@@ -262,6 +268,45 @@ python3 ~/.agent-cockpit/bin/report_state.py \
 
 보고가 만료되면 데몬은 개략적인 어댑터 상태로 되돌아갑니다. 백분율은 실제 워크플로가 명시적으로 보고했을 때만 허용됩니다.
 
+## 이미 열어둔 세션 붙이기
+
+위 내용은 코크핏이 직접 띄운 세션 이야기입니다. 하지만 실제 작업은 대개 이미 열어둔 터미널 탭에서 돌아가고 있죠. 그 세션들도 tmux로 옮기지 않고 실시간 상태와 함께 덱에 올릴 수 있습니다.
+
+데몬은 `cockpit.json`에 선언되지 않은 세션의 보고를 거부합니다. 즉 실행 중인 세션이 스스로 등록할 수는 없습니다. 대신 **슬롯**을 미리 정해두고, Claude Code 훅이 살아있는 세션을 슬롯에 배정합니다. 슬롯 4개와 tmux 실행 컨트롤 1개를 묶어둔 [`cockpit.live-sessions.example.json`](skills/streamdeck-agent-cockpit/assets/cockpit.live-sessions.example.json)에서 시작하세요.
+
+```bash
+cp skills/streamdeck-agent-cockpit/assets/cockpit.live-sessions.example.json \
+   ~/.agent-cockpit/cockpit.json
+python3 ~/.agent-cockpit/bin/validate_cockpit.py ~/.agent-cockpit/cockpit.json
+```
+
+훅 브리지를 등록합니다. 추가 전용이고, 여러 번 실행해도 안전하며, 미리 볼 수 있습니다.
+
+```bash
+python3 ~/.agent-cockpit/bin/install_claude_hooks.py --dry-run
+python3 ~/.agent-cockpit/bin/install_claude_hooks.py
+```
+
+첫 쓰기 전에 설정 파일을 백업해 두세요. 상태는 오직 훅 이벤트에서만 나옵니다.
+
+| 훅 이벤트 | 키 표시 |
+|---|---|
+| `SessionStart`, `Stop` | `IDLE` |
+| `UserPromptSubmit` | `RUN` |
+| `Notification` (승인·대기·입력 요청) | `CHECK` |
+| `SessionEnd` | 슬롯 해제, 키는 `OFF`로 |
+
+키 라벨에는 세션의 작업 디렉터리 이름만 들어갑니다. 프롬프트 내용이나 모델 출력은 절대 올라가지 않습니다.
+
+슬롯을 탭하면 해당 창이 앞으로 나옵니다. `focus_terminal.py`가 iTerm2와 macOS 터미널을 지원하며, 슬롯을 점유할 때 기록해 둔 tty로 창을 찾습니다.
+
+이 방식의 한계는 모두 의도된 것입니다.
+
+- **브리지를 설치하기 전부터 돌던 세션은 보이지 않습니다.** 해당 세션을 재시작해야 잡힙니다.
+- **슬롯 수는 정해져 있습니다.** 전부 사용 중이면 새 세션은 무시됩니다. 기존 세션을 밀어내지 않습니다.
+- **붙잡은 슬롯에는 interrupt 제스처가 없습니다.** 터미널 자동화로 `Ctrl-C`를 안전하게 보낼 방법이 없어서, interrupt는 `tmux send-keys`가 정확히 동작하는 tmux 세션에만 둡니다.
+- **터미널 제목은 읽지 않습니다.** 쓸 만해 보이지만 "생각 중"과 "승인 대기 중"을 구분하지 못합니다.
+
 ## 검증
 
 `skills/streamdeck-agent-cockpit/`에서:
@@ -270,6 +315,7 @@ python3 ~/.agent-cockpit/bin/report_state.py \
 python3 -m compileall -q bin scripts tests
 python3 -m unittest discover -s tests -v
 python3 scripts/validate_cockpit.py assets/cockpit.example.json
+python3 scripts/validate_cockpit.py assets/cockpit.live-sessions.example.json
 python3 scripts/smoke_test.py
 ```
 
@@ -282,6 +328,7 @@ python3 scripts/smoke_test.py
 - 공식 플러그인 경계는 임의의 프로필을 편집하거나 관련 없는 서드파티 플러그인 액션을 제어할 안전한 범용 API를 제공하지 않습니다.
 - 터미널 포커스 동작은 터미널마다 다르며 실제 장치에서 확인이 필요합니다.
 - 훅/RPC/워크플로 보고가 없으면 세션 상태는 개략 수준에 머무릅니다.
+- 붙잡은 세션은 정해진 수의 슬롯만 쓰고 interrupt 제스처가 없으며, 레퍼런스 훅 브리지는 Claude Code만 지원합니다.
 
 ## 보안 경계
 

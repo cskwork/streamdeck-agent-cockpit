@@ -97,6 +97,66 @@ Unsafe option:
 
 - editing undocumented profile files/databases to insert or rewrite arbitrary actions.
 
+If a user reviews that trade-off and still directs you to place keys for them,
+say plainly that it is unsupported, back up the whole `.sdProfile` directory
+first, and know what actually bites:
+
+- **Quit the application before writing.** A running Stream Deck holds the
+  profile in memory and overwrites the file on exit.
+- **A page is only reachable if its id is in the top-level `Pages.Pages`
+  array.** `Pages.Default` can point at a page that is not in that array;
+  writing actions there renders nothing on the device and the application
+  silently reverts `Pages.Current` on next launch. Append the id to the array to
+  make it a real page.
+- Verify after relaunch by reading the file back. Do not infer success from the
+  write succeeding.
+
+## Known drift and failure modes
+
+`streamdeck create` is an interactive wizard with no flags, so it cannot be run
+unattended. Hand-authoring the `.sdPlugin` directory is acceptable as long as
+`streamdeck validate` still gates every build — it downloads current rules and
+catches manifest drift that a hand-written file will otherwise carry silently.
+
+Observed against `@elgato/streamdeck` 2.x, all of which the template predates:
+
+- `LogLevel` is no longer re-exported from the package root, and `streamDeck` is
+  a named export.
+- Action settings interfaces must satisfy `JsonObject`, so they need an index
+  signature.
+- The action decorator is TC39 standard, not legacy. Keep `experimentalDecorators`
+  off or the type checker reports that the decorator expects two arguments.
+- `Actions[].States[].FontSize` must be a number; a string fails validation.
+
+Bundling a CommonJS dependency into ESM output makes esbuild's `require` shim
+throw `Dynamic require of "events" is not supported`. The application surfaces
+only `Process stopped (unexpected): code=0x00000001` on a ten-second restart
+loop, so **run the built bundle directly under `node` to see the real stack** —
+the application log never shows it. Add a `createRequire` banner, or emit CJS.
+
+### Verify that a reload actually happened
+
+`streamdeck restart` and `streamdeck stop` report success even when the plugin
+process is untouched. Continued daemon polling is *not* evidence of a reload;
+the previous process is still running and still polling. Confirm reload by a
+fresh `Plugin connected` entry in the application log with a newer timestamp,
+and fall back to quitting and relaunching the Stream Deck application when the
+timestamp does not move. Never tell a user to re-check the hardware without
+confirming the new code is live.
+
+### Text is drawn twice
+
+If the action both renders text into its image and calls `setTitle`, the
+application draws the title on top of the image and the key reads as doubled.
+Pick one. When the image owns the text, clear the title explicitly — a title set
+by an earlier build persists in the application's runtime state — and set
+`ShowTitle` to false on the action's states.
+
+Size the text to the key rather than truncating: shrink the font when a label
+would overflow, and prefer the short status words already defined in the config's
+`appearance.states[*].titleSuffix` over raw state identifiers. `NEEDS ATTENTION`
+does not fit a 72 px key; `CHECK` does.
+
 ## Build gate
 
 Before packaging:
