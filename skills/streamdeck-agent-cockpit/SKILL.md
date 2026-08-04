@@ -24,7 +24,7 @@ Claude Code · Codex · Pi · JCode · another CLI
 - Do not require `streamdeck-mcp`, another MCP server, AgentDeck, or a model at runtime.
 - Use the official Stream Deck SDK only when dynamic labels, icons, dials, long-press handling, or live state are needed.
 - Launcher-only mode must remain usable for static tap actions without compiling a plugin.
-- Own only this skill's config, daemon, launchers, plugin UUID, action instances, and optional bundled profile. Never edit undocumented Stream Deck profile databases or unrelated actions.
+- Own only this skill's config, daemon, launchers, plugin UUID, action instances, and optional bundled profile. Do not edit undocumented Stream Deck profile stores by default. When the user explicitly asks to edit a user-owned macOS v3 profile page, use the guarded `scripts/streamdeck_profile.py` helper after creating a backup; never edit the profile registry or unrelated pages/actions.
 - Do not promise generic control of third-party Stream Deck plugins. Integrate them only through a documented plugin/service API or a user-configured Stream Deck Multi Action.
 - Bind controls by stable logical `controlId`, never by physical row/column coordinates in the cockpit config.
 - Execute only commands declared in local configuration. Never accept arbitrary shell text from a button press or HTTP request.
@@ -155,7 +155,38 @@ python3 scripts/generate_launchers.py \
   --output path/to/launchers
 ```
 
-Map the generated tap launcher through the Stream Deck application. Do not automate undocumented profile storage.
+Map the generated tap launcher through the Stream Deck application. For an explicit macOS page edit, follow 4a; do not touch profile storage directly outside the guarded helper.
+
+### 4a. Edit an explicit macOS v3 profile page when the user asks
+
+Page creation is best done in the Stream Deck application. If the application
+palette cannot accept a drag through the available UI bridge, the guarded
+helper can add built-in **Open** actions to one already-created page. This is a
+deliberate exception for an explicitly requested, user-owned profile—not a
+general profile database editor.
+
+1. Close the Stream Deck application after it has saved the new page.
+2. Read the profile root manifest and identify the exact page UUID. Do not infer
+   a page from physical coordinates or edit the root `Pages` list yourself.
+3. Run `scripts/streamdeck_profile.py` with the exact profile root, page UUID,
+   and launcher/title pairs. It verifies the profile name, refuses occupied
+   keys, creates a timestamped full-profile backup, and atomically changes only
+   that page's `manifest.json`.
+4. Reopen Stream Deck and verify the page and key titles in the application.
+
+Example:
+
+```bash
+python3 scripts/streamdeck_profile.py \
+  --profile-root "$HOME/Library/Application Support/com.elgato.StreamDeck/ProfilesV3/<profile-uuid>.sdProfile" \
+  --page-id <page-uuid> \
+  --control "0,0=$HOME/.agent-cockpit/launchers/session.claude.main.command|Claude Code" \
+  --control "1,0=$HOME/.agent-cockpit/launchers/session.codex.main.command|Codex"
+```
+
+The helper does not install plugins, change smart-profile assignments, or
+touch other pages. Roll back by closing Stream Deck and restoring the backup it
+reports, then reopen the application.
 
 ### 5. Implement session switching conservatively
 
