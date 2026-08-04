@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -12,6 +12,18 @@
 <meta property="og:url" content="https://cskwork.github.io/streamdeck-agent-cockpit/">
 <meta property="og:image" content="https://cskwork.github.io/streamdeck-agent-cockpit/logo.png">
 <meta name="twitter:card" content="summary">
+<script>
+  // Applied before first paint so the chosen language never flashes.
+  (function () {
+    var q = new URLSearchParams(location.search).get('lang');
+    var h = location.hash === '#ko' ? 'ko' : null;
+    var saved = null;
+    try { saved = localStorage.getItem('sdac-lang'); } catch (e) {}
+    var lang = (q === 'ko' || q === 'en') ? q : (h || saved || 'en');
+    document.documentElement.setAttribute('data-lang', lang);
+    document.documentElement.setAttribute('lang', lang);
+  })();
+</script>
 <style>
   :root{
     --bg:#07090c;
@@ -28,7 +40,8 @@
     --amber:#f59e0b;
     --red:#ef4444;
     --mono:ui-monospace,"SF Mono",SFMono-Regular,"JetBrains Mono",Menlo,Consolas,monospace;
-    --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,"Helvetica Neue",Arial,sans-serif;
+    --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,"Apple SD Gothic Neo",Pretendard,
+           "Noto Sans KR","Malgun Gothic","Helvetica Neue",Arial,sans-serif;
     --radius:14px;
     --maxw:1080px;
   }
@@ -48,6 +61,21 @@
   a{color:inherit}
   .wrap{max-width:var(--maxw);margin:0 auto;padding:0 24px}
 
+  /* ---------- language switch ---------- */
+  [data-lang="en"] [data-l="ko"]{display:none !important}
+  [data-lang="ko"] [data-l="en"]{display:none !important}
+  [data-lang="ko"] h1,[data-lang="ko"] h2,[data-lang="ko"] h3{letter-spacing:-.015em}
+  [data-lang="ko"] h1,[data-lang="ko"] h2,[data-lang="ko"] h3,
+  [data-lang="ko"] p,[data-lang="ko"] li,[data-lang="ko"] td,[data-lang="ko"] th{word-break:keep-all}
+  [data-lang="ko"] h1{line-height:1.18}
+  .lang{display:flex;border:1px solid var(--line);border-radius:9px;overflow:hidden;background:var(--panel)}
+  .lang button{
+    font:inherit;font-size:12px;font-family:var(--mono);cursor:pointer;border:0;background:transparent;
+    color:var(--ink-3);padding:6px 10px;transition:.15s
+  }
+  .lang button:hover{color:var(--ink)}
+  .lang button[aria-pressed="true"]{background:rgba(16,185,129,.12);color:var(--accent)}
+
   /* ---------- nav ---------- */
   nav{position:sticky;top:0;z-index:20;backdrop-filter:blur(12px);
       background:rgba(7,9,12,.78);border-bottom:1px solid var(--line-soft)}
@@ -59,7 +87,7 @@
   .nav-links a:hover{color:var(--ink)}
   .nav-cta{padding:7px 14px;border:1px solid var(--line);border-radius:9px;color:var(--ink)!important;background:var(--panel)}
   .nav-cta:hover{border-color:var(--accent-dim)}
-  @media(max-width:760px){.nav-links .hide-sm{display:none}}
+  @media(max-width:860px){.nav-links .hide-sm{display:none}.nav-links{gap:12px}}
 
   /* ---------- hero ---------- */
   header{padding:88px 0 72px;text-align:center}
@@ -180,7 +208,8 @@
   .tbl th,.tbl td{padding:13px 16px;text-align:left;border-bottom:1px solid var(--line-soft)}
   .tbl thead th{background:var(--panel);font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3);font-weight:600}
   .tbl tbody tr:last-child td{border-bottom:none}
-  .tbl td:first-child{font-family:var(--mono);font-size:13px;color:var(--ink)}
+  .tbl td:first-child{font-size:13px;color:var(--ink)}
+  .tbl .mono{font-family:var(--mono)}
   .tbl .num{text-align:center;width:150px}
   .yes{color:var(--accent);font-weight:600}
   .no{color:var(--ink-3)}
@@ -191,8 +220,7 @@
   .check-list li{display:flex;gap:11px;align-items:flex-start;color:var(--ink-2);font-size:14.5px}
   .check-list li::before{
     content:"";flex:none;width:16px;height:16px;margin-top:4px;border-radius:5px;
-    background:rgba(16,185,129,.12);border:1px solid rgba(16,185,129,.35);
-    background-image:linear-gradient(transparent,transparent)
+    background:rgba(16,185,129,.12);border:1px solid rgba(16,185,129,.35)
   }
   .x-list li::before{background:rgba(239,68,68,.10);border-color:rgba(239,68,68,.32)}
 
@@ -222,10 +250,14 @@
   <div class="wrap nav-in">
     <a class="brand" href="#top"><img src="./logo.png" alt=""> Agent Cockpit</a>
     <div class="nav-links">
-      <a href="#how" class="hide-sm">How it works</a>
-      <a href="#modes" class="hide-sm">Modes</a>
-      <a href="#status" class="hide-sm">Status</a>
-      <a href="#install">Install</a>
+      <a href="#how" class="hide-sm"><span data-l="en">How it works</span><span data-l="ko">동작 방식</span></a>
+      <a href="#modes" class="hide-sm"><span data-l="en">Modes</span><span data-l="ko">모드</span></a>
+      <a href="#status" class="hide-sm"><span data-l="en">Status</span><span data-l="ko">상태</span></a>
+      <a href="#install"><span data-l="en">Install</span><span data-l="ko">설치</span></a>
+      <div class="lang" role="group" aria-label="Language">
+        <button type="button" data-set-lang="en" aria-pressed="true">EN</button>
+        <button type="button" data-set-lang="ko" aria-pressed="false">한국어</button>
+      </div>
       <a class="nav-cta" href="https://github.com/cskwork/streamdeck-agent-cockpit">GitHub</a>
     </div>
   </div>
@@ -234,22 +266,32 @@
 <header id="top">
   <div class="wrap">
     <span class="eyebrow"><span class="dot"></span> Skill · v3.0.0 · standalone</span>
-    <h1>Your Stream Deck, wired into your <em>agents</em>.</h1>
-    <p class="lede">
+
+    <h1 data-l="en">Your Stream Deck, wired into your <em>agents</em>.</h1>
+    <h1 data-l="ko">스트림덱을 <em>에이전트</em>에 직접 연결하세요.</h1>
+
+    <p class="lede" data-l="en">
       One portable skill that turns a Stream Deck into a local cockpit for Claude Code, Codex, Pi,
       JCode, and any other terminal agent. Tap to focus a session. Hold to interrupt it. Read status
       that is actually backed by evidence.
     </p>
+    <p class="lede" data-l="ko">
+      Stream Deck을 Claude Code, Codex, Pi, JCode를 비롯한 모든 터미널 에이전트의 로컬 콕핏으로
+      바꾸는 단일 이식형 스킬입니다. 탭하면 세션에 포커스하고, 길게 누르면 중단합니다. 표시되는
+      상태는 실제 근거가 뒷받침합니다.
+    </p>
+
     <div class="cta-row">
-      <a class="btn btn-primary" href="#install">Install the skill</a>
-      <a class="btn btn-ghost" href="https://github.com/cskwork/streamdeck-agent-cockpit">View source</a>
+      <a class="btn btn-primary" href="#install"><span data-l="en">Install the skill</span><span data-l="ko">스킬 설치하기</span></a>
+      <a class="btn btn-ghost" href="https://github.com/cskwork/streamdeck-agent-cockpit"><span data-l="en">View source</span><span data-l="ko">소스 보기</span></a>
     </div>
+
     <div class="badges">
       <span class="badge">MIT</span>
-      <span class="badge">Python 3.9+ stdlib only</span>
-      <span class="badge">no MCP server</span>
-      <span class="badge">no cloud</span>
-      <span class="badge">no model at runtime</span>
+      <span class="badge"><span data-l="en">Python 3.9+ stdlib only</span><span data-l="ko">Python 3.9+ 표준 라이브러리만</span></span>
+      <span class="badge"><span data-l="en">no MCP server</span><span data-l="ko">MCP 서버 불필요</span></span>
+      <span class="badge"><span data-l="en">no cloud</span><span data-l="ko">클라우드 불필요</span></span>
+      <span class="badge"><span data-l="en">no model at runtime</span><span data-l="ko">런타임에 모델 불필요</span></span>
     </div>
 
     <div class="deck-shell" aria-label="Example Stream Deck layout">
@@ -265,10 +307,15 @@
         <div class="key off">    <b>Daemon</b><span class="tag">no link</span></div>
         <div class="key">        <b>Logs</b><span class="tag">idle</span></div>
       </div>
-      <div class="deck-caption">
+      <div class="deck-caption" data-l="en">
         <span>tap → focus_or_launch</span>
         <span>hold → interrupt (confirmed)</span>
         <span>labels expire when reports go stale</span>
+      </div>
+      <div class="deck-caption" data-l="ko">
+        <span>탭 → focus_or_launch</span>
+        <span>홀드 → interrupt (확인 필요)</span>
+        <span>보고가 만료되면 라벨도 만료</span>
       </div>
     </div>
   </div>
@@ -277,44 +324,63 @@
 <section id="why">
   <div class="wrap">
     <div class="sec-head">
-      <div class="sec-tag">The point</div>
-      <h2>A physical control surface that never lies to you.</h2>
-      <p class="sub">
+      <div class="sec-tag"><span data-l="en">The point</span><span data-l="ko">핵심</span></div>
+      <h2 data-l="en">A physical control surface that never lies to you.</h2>
+      <h2 data-l="ko">거짓말하지 않는 물리적 컨트롤 표면.</h2>
+      <p class="sub" data-l="en">
         Most agent dashboards guess. They read a PID, watch a terminal title, scrape output, and
         render a confident “working…”. This one refuses to. A key shows a semantic state only when
         something reported it, and reverts to a coarse fact the moment that report expires.
+      </p>
+      <p class="sub" data-l="ko">
+        대부분의 에이전트 대시보드는 추측합니다. PID를 읽고, 터미널 제목을 훔쳐보고, 출력을
+        긁어모아 자신 있게 “작업 중…”이라고 표시하죠. 이 콕핏은 그러지 않습니다. 키는 무언가가
+        실제로 보고했을 때만 의미론적 상태를 보여주고, 그 보고가 만료되는 즉시 검증된 개략
+        사실로 되돌아갑니다.
       </p>
     </div>
     <div class="grid g3">
       <div class="card">
         <div class="ico"><svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h10"/></svg></div>
-        <h3>Predeclared operations only</h3>
-        <p>A button press sends a named operation, never shell text. Commands are argv arrays run with <code>shell=False</code>. There is no raw-execution endpoint to abuse.</p>
+        <h3 data-l="en">Predeclared operations only</h3>
+        <h3 data-l="ko">사전 선언된 작업만 실행</h3>
+        <p data-l="en">A button press sends a named operation, never shell text. Commands are argv arrays run with <code>shell=False</code>. There is no raw-execution endpoint to abuse.</p>
+        <p data-l="ko">버튼을 누르면 셸 문자열이 아니라 이름이 정해진 작업이 전달됩니다. 명령은 argv 배열이며 <code>shell=False</code>로 실행됩니다. 악용할 수 있는 원시 실행 엔드포인트 자체가 없습니다.</p>
       </div>
       <div class="card">
         <div class="ico"><svg viewBox="0 0 24 24"><rect x="4" y="10" width="16" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg></div>
-        <h3>Loopback and token-gated</h3>
-        <p>The daemon binds to <code>127.0.0.1</code> and authenticates every request against a random token in a mode-0600 file. Nothing leaves the machine.</p>
+        <h3 data-l="en">Loopback and token-gated</h3>
+        <h3 data-l="ko">루프백 바인딩 + 토큰 인증</h3>
+        <p data-l="en">The daemon binds to <code>127.0.0.1</code> and authenticates every request against a random token in a mode-0600 file. Nothing leaves the machine.</p>
+        <p data-l="ko">데몬은 <code>127.0.0.1</code>에만 바인딩하고, 모든 요청을 mode-0600 파일의 무작위 토큰으로 인증합니다. 어떤 것도 이 머신을 떠나지 않습니다.</p>
       </div>
       <div class="card">
         <div class="ico"><svg viewBox="0 0 24 24"><path d="M12 8v5l3 2"/><circle cx="12" cy="12" r="9"/></svg></div>
-        <h3>State that expires</h3>
-        <p>Every semantic report carries a TTL. When it lapses the key falls back to a probe result, so a dead agent can never leave a key stuck on “running”.</p>
+        <h3 data-l="en">State that expires</h3>
+        <h3 data-l="ko">만료되는 상태</h3>
+        <p data-l="en">Every semantic report carries a TTL. When it lapses the key falls back to a probe result, so a dead agent can never leave a key stuck on “running”.</p>
+        <p data-l="ko">모든 의미론적 보고에는 TTL이 붙습니다. 만료되면 키는 프로브 결과로 되돌아가므로, 죽은 에이전트가 키를 “running”에 붙박아 두는 일이 없습니다.</p>
       </div>
       <div class="card">
         <div class="ico"><svg viewBox="0 0 24 24"><path d="M3 12h4l3 8 4-16 3 8h4"/></svg></div>
-        <h3>Logical bindings</h3>
-        <p>Controls bind to a stable <code>controlId</code>, never a row/column. Rearrange your deck in the Stream Deck app and the config stays valid.</p>
+        <h3 data-l="en">Logical bindings</h3>
+        <h3 data-l="ko">논리적 바인딩</h3>
+        <p data-l="en">Controls bind to a stable <code>controlId</code>, never a row/column. Rearrange your deck in the Stream Deck app and the config stays valid.</p>
+        <p data-l="ko">컨트롤은 행/열 좌표가 아니라 안정적인 <code>controlId</code>에 묶입니다. Stream Deck 앱에서 배치를 바꿔도 설정은 그대로 유효합니다.</p>
       </div>
       <div class="card">
         <div class="ico"><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg></div>
-        <h3>Guarded destructive gestures</h3>
-        <p>Interrupt, kill, deploy, and merge require an explicit confirmation policy. A stray tap cannot stop a running agent.</p>
+        <h3 data-l="en">Guarded destructive gestures</h3>
+        <h3 data-l="ko">보호되는 파괴적 제스처</h3>
+        <p data-l="en">Interrupt, kill, deploy, and merge require an explicit confirmation policy. A stray tap cannot stop a running agent.</p>
+        <p data-l="ko">중단, 종료, 배포, 머지에는 명시적인 확인 정책이 필요합니다. 실수로 한 번 누른 탭이 실행 중인 에이전트를 멈출 수 없습니다.</p>
       </div>
       <div class="card">
         <div class="ico"><svg viewBox="0 0 24 24"><path d="M12 3v18M3 12h18"/></svg></div>
-        <h3>Nothing else touched</h3>
-        <p>The skill owns its config, launchers, plugin UUID, and action instances. Stream Deck's internal profile database and third-party actions are never rewritten.</p>
+        <h3 data-l="en">Nothing else touched</h3>
+        <h3 data-l="ko">그 외에는 건드리지 않음</h3>
+        <p data-l="en">The skill owns its config, launchers, plugin UUID, and action instances. Stream Deck's internal profile database and third-party actions are never rewritten.</p>
+        <p data-l="ko">이 스킬은 자신의 설정, 런처, 플러그인 UUID, 액션 인스턴스만 소유합니다. Stream Deck 내부 프로필 데이터베이스와 서드파티 액션은 절대 다시 쓰지 않습니다.</p>
       </div>
     </div>
   </div>
@@ -323,35 +389,60 @@
 <section id="how">
   <div class="wrap">
     <div class="sec-head">
-      <div class="sec-tag">How it works</div>
-      <h2>One local daemon is the entire policy boundary.</h2>
-      <p class="sub">
+      <div class="sec-tag"><span data-l="en">How it works</span><span data-l="ko">동작 방식</span></div>
+      <h2 data-l="en">One local daemon is the entire policy boundary.</h2>
+      <h2 data-l="ko">로컬 데몬 하나가 정책 경계의 전부입니다.</h2>
+      <p class="sub" data-l="en">
         Stream Deck is the input device and the display. <code>cockpitd</code> decides what may run.
         Everything between them is a named operation over loopback.
+      </p>
+      <p class="sub" data-l="ko">
+        Stream Deck은 입력 장치이자 디스플레이일 뿐이고, 무엇을 실행할지는 <code>cockpitd</code>가
+        결정합니다. 그 사이를 오가는 것은 루프백을 통한, 이름이 정해진 작업뿐입니다.
       </p>
     </div>
 
     <div class="flow">
-      <div class="node">Stream Deck action <em>or</em> generated launcher<small>tap · hold · dial</small></div>
-      <div class="arrow"><span>HTTP on 127.0.0.1 + bearer token</span></div>
-      <div class="node hi">cockpitd<small>loads config · authenticates · resolves controlId → operation</small></div>
-      <div class="arrow"><span>predeclared argv, shell=False</span></div>
-      <div class="node">session / command adapter<small>tmux, terminal, or your own adapter</small></div>
+      <div class="node">
+        <span data-l="en">Stream Deck action <em>or</em> generated launcher</span>
+        <span data-l="ko">Stream Deck 액션 <em>또는</em> 생성된 런처</span>
+        <small><span data-l="en">tap · hold · dial</span><span data-l="ko">탭 · 홀드 · 다이얼</span></small>
+      </div>
+      <div class="arrow">
+        <span data-l="en">HTTP on 127.0.0.1 + bearer token</span>
+        <span data-l="ko">127.0.0.1 HTTP + bearer 토큰</span>
+      </div>
+      <div class="node hi">cockpitd
+        <small>
+          <span data-l="en">loads config · authenticates · resolves controlId → operation</span>
+          <span data-l="ko">설정 로드 · 인증 · controlId → 작업 해석</span>
+        </small>
+      </div>
+      <div class="arrow">
+        <span data-l="en">predeclared argv, shell=False</span>
+        <span data-l="ko">사전 선언된 argv, shell=False</span>
+      </div>
+      <div class="node">
+        <span data-l="en">session / command adapter</span>
+        <span data-l="ko">세션 / 명령 어댑터</span>
+        <small><span data-l="en">tmux, terminal, or your own adapter</span><span data-l="ko">tmux, 터미널, 또는 직접 만든 어댑터</span></small>
+      </div>
       <div class="arrow"></div>
       <div class="fanout">
         <span class="leaf">Claude Code</span>
         <span class="leaf">Codex</span>
         <span class="leaf">Pi</span>
         <span class="leaf">JCode</span>
-        <span class="leaf">any CLI</span>
+        <span class="leaf"><span data-l="en">any CLI</span><span data-l="ko">모든 CLI</span></span>
       </div>
     </div>
 
     <div class="grid g2" style="margin-top:40px">
       <div>
-        <h3 style="margin-bottom:12px">Configure controls, not coordinates</h3>
+        <h3 style="margin-bottom:12px" data-l="en">Configure controls, not coordinates</h3>
+        <h3 style="margin-bottom:12px" data-l="ko">좌표가 아니라 컨트롤을 설정합니다</h3>
         <div class="codeblock">
-<pre><span class="c">// ~/.agent-cockpit/cockpit.json (version 3)</span>
+<pre><span class="c" data-l="en">// ~/.agent-cockpit/cockpit.json (version 3)</span><span class="c" data-l="ko">// ~/.agent-cockpit/cockpit.json (버전 3)</span>
 <span class="k">"session.claude.main"</span>: {
   <span class="k">"label"</span>: <span class="s">"Claude"</span>,
   <span class="k">"adapter"</span>: { <span class="k">"type"</span>: <span class="s">"tmux"</span>, <span class="k">"target"</span>: <span class="s">"ac-claude-main"</span> },
@@ -364,18 +455,23 @@
         </div>
       </div>
       <div>
-        <h3 style="margin-bottom:12px">Report real state from a hook</h3>
+        <h3 style="margin-bottom:12px" data-l="en">Report real state from a hook</h3>
+        <h3 style="margin-bottom:12px" data-l="ko">훅에서 실제 상태를 보고합니다</h3>
         <div class="codeblock">
           <button class="copy" data-copy="python3 ~/.agent-cockpit/bin/cockpitctl.py report session.claude.main running --label &quot;Running tests&quot; --ttl 180">copy</button>
-<pre><span class="c"># from an agent hook, CI step, or any script</span>
+<pre><span class="c" data-l="en"># from an agent hook, CI step, or any script</span><span class="c" data-l="ko"># 에이전트 훅, CI 스텝, 또는 아무 스크립트에서</span>
 python3 ~/.agent-cockpit/bin/cockpitctl.py \
   report session.claude.main running \
   --label <span class="s">"Running tests"</span> --ttl 180</pre>
         </div>
-        <p class="sub" style="font-size:14px;margin-top:14px">
+        <p class="sub" style="font-size:14px;margin-top:14px" data-l="en">
           A percentage is accepted only when your workflow emits a real numerator and denominator —
           27 of 40 tests, 8 of 10 files. It is never derived from elapsed time, token counts, or
           model prose.
+        </p>
+        <p class="sub" style="font-size:14px;margin-top:14px" data-l="ko">
+          백분율은 워크플로가 실제 분자와 분모를 내놓을 때만 허용됩니다 — 테스트 40개 중 27개,
+          파일 10개 중 8개처럼요. 경과 시간이나 토큰 수, 모델이 쓴 문장에서 유추하지 않습니다.
         </p>
       </div>
     </div>
@@ -385,36 +481,51 @@ python3 ~/.agent-cockpit/bin/cockpitctl.py \
 <section id="modes">
   <div class="wrap">
     <div class="sec-head">
-      <div class="sec-tag">Two modes</div>
-      <h2>Start without compiling anything.</h2>
-      <p class="sub">
+      <div class="sec-tag"><span data-l="en">Two modes</span><span data-l="ko">두 가지 모드</span></div>
+      <h2 data-l="en">Start without compiling anything.</h2>
+      <h2 data-l="ko">아무것도 컴파일하지 않고 시작하세요.</h2>
+      <p class="sub" data-l="en">
         Launcher-only mode uses the built-in Stream Deck <em>Open</em> action against generated
         <code>.command</code>/<code>.cmd</code> files. Move to the native plugin only when you need a
         dynamic requirement that launchers genuinely cannot serve.
+      </p>
+      <p class="sub" data-l="ko">
+        런처 전용 모드는 생성된 <code>.command</code>/<code>.cmd</code> 파일에 Stream Deck 내장
+        <em>Open</em> 액션을 연결합니다. 런처로는 정말 해결되지 않는 동적 요구가 생겼을 때만
+        네이티브 플러그인으로 넘어가세요.
       </p>
     </div>
     <div class="tbl-scroll">
       <table class="tbl">
         <thead>
-          <tr><th>Requirement</th><th class="num">Launcher-only</th><th class="num">Native plugin</th></tr>
+          <tr>
+            <th><span data-l="en">Requirement</span><span data-l="ko">요구 사항</span></th>
+            <th class="num"><span data-l="en">Launcher-only</span><span data-l="ko">런처 전용</span></th>
+            <th class="num"><span data-l="en">Native plugin</span><span data-l="ko">네이티브 플러그인</span></th>
+          </tr>
         </thead>
         <tbody>
-          <tr><td>Tap launch / focus</td><td class="num yes">Yes</td><td class="num yes">Yes</td></tr>
-          <tr><td>Static custom icon</td><td class="num yes">Yes</td><td class="num yes">Yes</td></tr>
-          <tr><td>Dynamic title / icon</td><td class="num no">No</td><td class="num yes">Yes</td></tr>
-          <tr><td>Semantic state display</td><td class="num no">No</td><td class="num yes">Yes</td></tr>
-          <tr><td>Long press</td><td class="num no">No</td><td class="num yes">Yes</td></tr>
-          <tr><td>Dial rotate / press</td><td class="num no">No</td><td class="num yes">Yes</td></tr>
+          <tr><td><span data-l="en">Tap launch / focus</span><span data-l="ko">탭으로 실행 / 포커스</span></td><td class="num yes">Yes</td><td class="num yes">Yes</td></tr>
+          <tr><td><span data-l="en">Static custom icon</span><span data-l="ko">정적 커스텀 아이콘</span></td><td class="num yes">Yes</td><td class="num yes">Yes</td></tr>
+          <tr><td><span data-l="en">Dynamic title / icon</span><span data-l="ko">동적 제목 / 아이콘</span></td><td class="num no">No</td><td class="num yes">Yes</td></tr>
+          <tr><td><span data-l="en">Semantic state display</span><span data-l="ko">의미론적 상태 표시</span></td><td class="num no">No</td><td class="num yes">Yes</td></tr>
+          <tr><td><span data-l="en">Long press</span><span data-l="ko">길게 누르기</span></td><td class="num no">No</td><td class="num yes">Yes</td></tr>
+          <tr><td><span data-l="en">Dial rotate / press</span><span data-l="ko">다이얼 회전 / 누름</span></td><td class="num no">No</td><td class="num yes">Yes</td></tr>
           <tr><td>Property Inspector</td><td class="num no">No</td><td class="num yes">Yes</td></tr>
-          <tr><td>Custom plugin build required</td><td class="num no">No</td><td class="num">Yes</td></tr>
-          <tr><td>MCP server required</td><td class="num no">No</td><td class="num no">No</td></tr>
+          <tr><td><span data-l="en">Custom plugin build required</span><span data-l="ko">커스텀 플러그인 빌드 필요</span></td><td class="num no">No</td><td class="num">Yes</td></tr>
+          <tr><td><span data-l="en">MCP server required</span><span data-l="ko">MCP 서버 필요</span></td><td class="num no">No</td><td class="num no">No</td></tr>
         </tbody>
       </table>
     </div>
-    <p class="sub" style="margin-top:18px;font-size:14px">
+    <p class="sub" style="margin-top:18px;font-size:14px" data-l="en">
       The repo ships a plugin <em>template</em> at <code>templates/streamdeck-plugin/</code> — one
       generic action bound to a <code>controlId</code> — to adapt with the current official Stream
       Deck SDK. No prebuilt plugin binary is included.
+    </p>
+    <p class="sub" style="margin-top:18px;font-size:14px" data-l="ko">
+      저장소에는 <code>templates/streamdeck-plugin/</code> 아래에 플러그인 <em>템플릿</em>이
+      들어 있습니다 — <code>controlId</code>에 묶이는 범용 액션 하나로, 현행 공식 Stream Deck
+      SDK에 맞춰 적용하면 됩니다. 미리 빌드된 플러그인 바이너리는 포함되지 않습니다.
     </p>
   </div>
 </section>
@@ -422,40 +533,66 @@ python3 ~/.agent-cockpit/bin/cockpitctl.py \
 <section id="status">
   <div class="wrap">
     <div class="sec-head">
-      <div class="sec-tag">Evidence tiers</div>
-      <h2>What a key is allowed to claim.</h2>
-      <p class="sub">
+      <div class="sec-tag"><span data-l="en">Evidence tiers</span><span data-l="ko">근거 등급</span></div>
+      <h2 data-l="en">What a key is allowed to claim.</h2>
+      <h2 data-l="ko">키가 주장해도 되는 것.</h2>
+      <p class="sub" data-l="en">
         Infrastructure presence and agent lifecycle are different facts, and the UI keeps them apart.
+      </p>
+      <p class="sub" data-l="ko">
+        인프라의 존재 여부와 에이전트의 생애주기는 서로 다른 사실이며, UI는 둘을 섞지 않습니다.
       </p>
     </div>
     <div class="tbl-scroll">
       <table class="tbl">
-        <thead><tr><th>Tier</th><th>Source</th><th>Allowed claims</th></tr></thead>
+        <thead><tr>
+          <th><span data-l="en">Tier</span><span data-l="ko">등급</span></th>
+          <th><span data-l="en">Source</span><span data-l="ko">출처</span></th>
+          <th><span data-l="en">Allowed claims</span><span data-l="ko">허용되는 주장</span></th>
+        </tr></thead>
         <tbody>
-          <tr><td>reported</td><td>Agent hook, RPC/event adapter, workflow callback, explicit reporter</td><td>Exact reported semantic state, plus explicit progress</td></tr>
-          <tr><td>coarse</td><td>tmux / process / probe exit code</td><td><code>present</code>, <code>offline</code>, or <code>unavailable</code> only</td></tr>
-          <tr><td>stale</td><td>Expired report plus a current probe</td><td>Coarse state, with the last report marked stale</td></tr>
-          <tr><td>unknown</td><td>No valid report and no working probe</td><td>Unknown / unavailable</td></tr>
+          <tr>
+            <td class="mono">reported</td>
+            <td><span data-l="en">Agent hook, RPC/event adapter, workflow callback, explicit reporter</span><span data-l="ko">에이전트 훅, RPC/이벤트 어댑터, 워크플로 콜백, 명시적 리포터</span></td>
+            <td><span data-l="en">Exact reported semantic state, plus explicit progress</span><span data-l="ko">보고된 의미론적 상태 그대로, 그리고 명시적 진행률</span></td>
+          </tr>
+          <tr>
+            <td class="mono">coarse</td>
+            <td><span data-l="en">tmux / process / probe exit code</span><span data-l="ko">tmux / 프로세스 / 프로브 종료 코드</span></td>
+            <td><code>present</code>, <code>offline</code>, <code>unavailable</code><span data-l="en"> only</span><span data-l="ko"> 만 가능</span></td>
+          </tr>
+          <tr>
+            <td class="mono">stale</td>
+            <td><span data-l="en">Expired report plus a current probe</span><span data-l="ko">만료된 보고 + 현재 프로브 결과</span></td>
+            <td><span data-l="en">Coarse state, with the last report marked stale</span><span data-l="ko">개략 상태, 마지막 보고는 만료로 표시</span></td>
+          </tr>
+          <tr>
+            <td class="mono">unknown</td>
+            <td><span data-l="en">No valid report and no working probe</span><span data-l="ko">유효한 보고도, 작동하는 프로브도 없음</span></td>
+            <td><span data-l="en">Unknown / unavailable</span><span data-l="ko">알 수 없음 / 사용 불가</span></td>
+          </tr>
         </tbody>
       </table>
     </div>
 
     <div class="grid g2" style="margin-top:36px">
       <div class="card">
-        <h3>Semantic states, only when reported</h3>
+        <h3 data-l="en">Semantic states, only when reported</h3>
+        <h3 data-l="ko">보고되었을 때만 쓰는 의미론적 상태</h3>
         <ul class="check-list" style="margin-top:14px">
           <li><code>idle</code> · <code>running</code> · <code>needs_attention</code></li>
           <li><code>blocked</code> · <code>succeeded</code> · <code>failed</code></li>
-          <li>Every report carries a timestamp, TTL, and source</li>
+          <li><span data-l="en">Every report carries a timestamp, TTL, and source</span><span data-l="ko">모든 보고에는 타임스탬프, TTL, 출처가 함께 담깁니다</span></li>
         </ul>
       </div>
       <div class="card">
-        <h3>Never inferred from</h3>
+        <h3 data-l="en">Never inferred from</h3>
+        <h3 data-l="ko">절대 유추하지 않는 근거</h3>
         <ul class="check-list x-list" style="margin-top:14px">
-          <li>Process presence or a live PID</li>
-          <li>Elapsed time or a terminal title</li>
-          <li>Scraped terminal output or log-line counts</li>
-          <li>Token counts or model prose</li>
+          <li><span data-l="en">Process presence or a live PID</span><span data-l="ko">프로세스 존재 여부나 살아 있는 PID</span></li>
+          <li><span data-l="en">Elapsed time or a terminal title</span><span data-l="ko">경과 시간이나 터미널 제목</span></li>
+          <li><span data-l="en">Scraped terminal output or log-line counts</span><span data-l="ko">긁어모은 터미널 출력이나 로그 줄 수</span></li>
+          <li><span data-l="en">Token counts or model prose</span><span data-l="ko">토큰 수나 모델이 쓴 문장</span></li>
         </ul>
       </div>
     </div>
@@ -465,21 +602,27 @@ python3 ~/.agent-cockpit/bin/cockpitctl.py \
 <section id="install">
   <div class="wrap">
     <div class="sec-head">
-      <div class="sec-tag">Install</div>
-      <h2>Two steps: the skill, then the runtime.</h2>
-      <p class="sub">
+      <div class="sec-tag"><span data-l="en">Install</span><span data-l="ko">설치</span></div>
+      <h2 data-l="en">Two steps: the skill, then the runtime.</h2>
+      <h2 data-l="ko">두 단계: 스킬, 그다음 런타임.</h2>
+      <p class="sub" data-l="en">
         The skill teaches your agent how to build and maintain the cockpit. The runtime is the
         daemon, CLI, and launcher generator that actually run on your machine.
       </p>
+      <p class="sub" data-l="ko">
+        스킬은 에이전트에게 콕핏을 만들고 유지하는 방법을 가르칩니다. 런타임은 실제로 머신에서
+        돌아가는 데몬, CLI, 런처 생성기입니다.
+      </p>
     </div>
 
-    <h3 style="margin-bottom:14px">1 · Install the skill</h3>
+    <h3 style="margin-bottom:14px" data-l="en">1 · Install the skill</h3>
+    <h3 style="margin-bottom:14px" data-l="ko">1 · 스킬 설치</h3>
     <div class="tabs" role="tablist">
       <button class="tab" role="tab" aria-selected="true"  data-panel="p-claude">Claude Code</button>
       <button class="tab" role="tab" aria-selected="false" data-panel="p-codex">Codex</button>
       <button class="tab" role="tab" aria-selected="false" data-panel="p-gemini">Gemini CLI</button>
       <button class="tab" role="tab" aria-selected="false" data-panel="p-skills">Cursor / OpenCode / Amp</button>
-      <button class="tab" role="tab" aria-selected="false" data-panel="p-manual">Manual · JCode</button>
+      <button class="tab" role="tab" aria-selected="false" data-panel="p-manual"><span data-l="en">Manual · JCode</span><span data-l="ko">수동 · JCode</span></button>
     </div>
 
     <div class="panel" id="p-claude">
@@ -489,7 +632,8 @@ claude plugin install streamdeck-agent-cockpit@streamdeck-agent-cockpit">copy</b
 <pre>claude plugin marketplace add cskwork/streamdeck-agent-cockpit
 claude plugin install streamdeck-agent-cockpit@streamdeck-agent-cockpit</pre>
       </div>
-      <p>Then type <code>/streamdeck-agent-cockpit</code>. Verify with <code>claude plugin list</code>.</p>
+      <p data-l="en">Then type <code>/streamdeck-agent-cockpit</code>. Verify with <code>claude plugin list</code>.</p>
+      <p data-l="ko">그다음 <code>/streamdeck-agent-cockpit</code>을 입력하세요. <code>claude plugin list</code>로 확인합니다.</p>
     </div>
 
     <div class="panel" id="p-codex" hidden>
@@ -499,7 +643,8 @@ codex plugin add streamdeck-agent-cockpit@streamdeck-agent-cockpit">copy</button
 <pre>codex plugin marketplace add cskwork/streamdeck-agent-cockpit --ref main
 codex plugin add streamdeck-agent-cockpit@streamdeck-agent-cockpit</pre>
       </div>
-      <p>Then type <code>$streamdeck-agent-cockpit</code>. Verify with <code>codex plugin list</code>.</p>
+      <p data-l="en">Then type <code>$streamdeck-agent-cockpit</code>. Verify with <code>codex plugin list</code>.</p>
+      <p data-l="ko">그다음 <code>$streamdeck-agent-cockpit</code>을 입력하세요. <code>codex plugin list</code>로 확인합니다.</p>
     </div>
 
     <div class="panel" id="p-gemini" hidden>
@@ -507,16 +652,18 @@ codex plugin add streamdeck-agent-cockpit@streamdeck-agent-cockpit</pre>
         <button class="copy" data-copy="gemini extensions install https://github.com/cskwork/streamdeck-agent-cockpit">copy</button>
 <pre>gemini extensions install https://github.com/cskwork/streamdeck-agent-cockpit</pre>
       </div>
-      <p>Verify with <code>gemini extensions list</code>.</p>
+      <p data-l="en">Verify with <code>gemini extensions list</code>.</p>
+      <p data-l="ko"><code>gemini extensions list</code>로 확인합니다.</p>
     </div>
 
     <div class="panel" id="p-skills" hidden>
       <div class="codeblock">
         <button class="copy" data-copy="npx skills add cskwork/streamdeck-agent-cockpit">copy</button>
 <pre>npx skills add cskwork/streamdeck-agent-cockpit
-<span class="c"># -g installs globally</span></pre>
+<span class="c" data-l="en"># -g installs globally</span><span class="c" data-l="ko"># -g 를 붙이면 전역 설치</span></pre>
       </div>
-      <p>Then type <code>/streamdeck-agent-cockpit</code> in a new agent chat.</p>
+      <p data-l="en">Then type <code>/streamdeck-agent-cockpit</code> in a new agent chat.</p>
+      <p data-l="ko">새 에이전트 대화에서 <code>/streamdeck-agent-cockpit</code>을 입력하세요.</p>
     </div>
 
     <div class="panel" id="p-manual" hidden>
@@ -528,29 +675,36 @@ python3 scripts/install_skill.py --target all">copy</button>
 cd streamdeck-agent-cockpit/skills/streamdeck-agent-cockpit
 python3 scripts/install_skill.py --target all</pre>
       </div>
-      <p>Targets: <code>claude</code>, <code>agents</code>, <code>jcode</code>, <code>all</code>. Use <code>--mode symlink</code> for an editable install.</p>
+      <p data-l="en">Targets: <code>claude</code>, <code>agents</code>, <code>jcode</code>, <code>all</code>. Use <code>--mode symlink</code> for an editable install.</p>
+      <p data-l="ko">타깃: <code>claude</code>, <code>agents</code>, <code>jcode</code>, <code>all</code>. 편집 가능한 설치는 <code>--mode symlink</code>를 쓰세요.</p>
     </div>
 
-    <h3 style="margin:38px 0 14px">2 · Install the local runtime</h3>
+    <h3 style="margin:38px 0 14px" data-l="en">2 · Install the local runtime</h3>
+    <h3 style="margin:38px 0 14px" data-l="ko">2 · 로컬 런타임 설치</h3>
     <div class="codeblock">
       <button class="copy" data-copy="cd skills/streamdeck-agent-cockpit
 python3 scripts/probe_environment.py --json
 python3 scripts/install_runtime.py
 python3 ~/.agent-cockpit/bin/cockpitd.py --config ~/.agent-cockpit/cockpit.json">copy</button>
-<pre><span class="c"># inspect what is actually installed before assuming anything</span>
+<pre><span class="c" data-l="en"># inspect what is actually installed before assuming anything</span><span class="c" data-l="ko"># 무엇이든 가정하기 전에 실제로 설치된 것을 확인</span>
 python3 scripts/probe_environment.py --json
 
-<span class="c"># install ~/.agent-cockpit (config, daemon, CLI, launcher generator)</span>
+<span class="c" data-l="en"># install ~/.agent-cockpit (config, daemon, CLI, launcher generator)</span><span class="c" data-l="ko"># ~/.agent-cockpit 설치 (설정, 데몬, CLI, 런처 생성기)</span>
 python3 scripts/install_runtime.py
 
-<span class="c"># start it, then check health</span>
+<span class="c" data-l="en"># start it, then check health</span><span class="c" data-l="ko"># 실행한 뒤 상태 점검</span>
 python3 ~/.agent-cockpit/bin/cockpitd.py   --config ~/.agent-cockpit/cockpit.json
 python3 ~/.agent-cockpit/bin/cockpitctl.py --config ~/.agent-cockpit/cockpit.json health</pre>
     </div>
-    <p class="sub" style="margin-top:16px;font-size:14px">
+    <p class="sub" style="margin-top:16px;font-size:14px" data-l="en">
       Requires Python 3.9+ and the Stream Deck application. <code>tmux</code>, a particular terminal,
       and the Stream Deck SDK are optional and only needed for the mode you choose. Full matrix in
       <a href="https://github.com/cskwork/streamdeck-agent-cockpit/blob/main/INSTALL.md" style="color:var(--accent)">INSTALL.md</a>.
+    </p>
+    <p class="sub" style="margin-top:16px;font-size:14px" data-l="ko">
+      Python 3.9+와 Stream Deck 애플리케이션이 필요합니다. <code>tmux</code>, 특정 터미널,
+      Stream Deck SDK는 선택 사항이며 선택한 모드에서만 필요합니다. 전체 표는
+      <a href="https://github.com/cskwork/streamdeck-agent-cockpit/blob/main/INSTALL.md" style="color:var(--accent)">INSTALL.md</a>에 있습니다.
     </p>
   </div>
 </section>
@@ -558,16 +712,22 @@ python3 ~/.agent-cockpit/bin/cockpitctl.py --config ~/.agent-cockpit/cockpit.jso
 <section id="verify">
   <div class="wrap">
     <div class="sec-head">
-      <div class="sec-tag">Verification</div>
-      <h2>Checks that run, and checks only you can run.</h2>
-      <p class="sub">
+      <div class="sec-tag"><span data-l="en">Verification</span><span data-l="ko">검증</span></div>
+      <h2 data-l="en">Checks that run, and checks only you can run.</h2>
+      <h2 data-l="ko">자동으로 도는 검사, 그리고 당신만 할 수 있는 검사.</h2>
+      <p class="sub" data-l="en">
         The repo separates what CI proves from what only a physical device can prove, and says so
         out loud rather than reporting a green tick for both.
+      </p>
+      <p class="sub" data-l="ko">
+        이 저장소는 CI가 증명하는 것과 실제 장치에서만 증명할 수 있는 것을 구분하고, 둘 다에
+        초록 체크를 찍는 대신 그 차이를 분명히 밝힙니다.
       </p>
     </div>
     <div class="grid g2">
       <div>
-        <h3 style="margin-bottom:12px">Automated</h3>
+        <h3 style="margin-bottom:12px" data-l="en">Automated</h3>
+        <h3 style="margin-bottom:12px" data-l="ko">자동화된 검사</h3>
         <div class="codeblock">
 <pre>python3 -m compileall -q bin scripts tests
 python3 -m unittest discover -s tests -v
@@ -576,14 +736,15 @@ python3 scripts/smoke_test.py</pre>
         </div>
       </div>
       <div>
-        <h3 style="margin-bottom:12px">On-device, by you</h3>
+        <h3 style="margin-bottom:12px" data-l="en">On-device, by you</h3>
+        <h3 style="margin-bottom:12px" data-l="ko">실제 장치에서, 직접</h3>
         <ul class="check-list">
-          <li>Tap focuses an existing session; tap launches a missing one, then focuses it</li>
-          <li>Hold does not fire on a normal tap</li>
-          <li>Interrupt reaches only the intended session</li>
-          <li>Daemon-down and invalid-control states are visible on the key</li>
-          <li>Restarting Stream Deck, the daemon, and the terminal corrupts nothing</li>
-          <li>Uninstalling leaves unrelated profiles intact</li>
+          <li><span data-l="en">Tap focuses an existing session; tap launches a missing one, then focuses it</span><span data-l="ko">탭이 기존 세션에 포커스하고, 없는 세션은 실행한 뒤 포커스하는지</span></li>
+          <li><span data-l="en">Hold does not fire on a normal tap</span><span data-l="ko">평범한 탭에서 홀드가 발동하지 않는지</span></li>
+          <li><span data-l="en">Interrupt reaches only the intended session</span><span data-l="ko">인터럽트가 의도한 세션에만 전달되는지</span></li>
+          <li><span data-l="en">Daemon-down and invalid-control states are visible on the key</span><span data-l="ko">데몬 다운·잘못된 컨트롤 상태가 키에 보이는지</span></li>
+          <li><span data-l="en">Restarting Stream Deck, the daemon, and the terminal corrupts nothing</span><span data-l="ko">Stream Deck·데몬·터미널을 재시작해도 설정이 깨지지 않는지</span></li>
+          <li><span data-l="en">Uninstalling leaves unrelated profiles intact</span><span data-l="ko">제거해도 관련 없는 프로필이 그대로 남는지</span></li>
         </ul>
       </div>
     </div>
@@ -593,32 +754,77 @@ python3 scripts/smoke_test.py</pre>
 <section id="limits">
   <div class="wrap">
     <div class="sec-head">
-      <div class="sec-tag">Deliberate limitations</div>
-      <h2>What this does not do.</h2>
+      <div class="sec-tag"><span data-l="en">Deliberate limitations</span><span data-l="ko">의도적인 한계</span></div>
+      <h2 data-l="en">What this does not do.</h2>
+      <h2 data-l="ko">이것이 하지 않는 일.</h2>
     </div>
     <div class="grid g2">
-      <div class="card"><h3>No live state in launcher-only mode</h3><p>Launchers cannot display state, distinguish a hold, or read a dial. That is the price of needing no compiled plugin.</p></div>
-      <div class="card"><h3>No prebuilt plugin binary</h3><p>The plugin template must be adapted and built with the current official Stream Deck SDK on your machine.</p></div>
-      <div class="card"><h3>No arbitrary profile editing</h3><p>The official plugin boundary offers no safe generic API for rewriting profiles or driving unrelated third-party actions. Multi Actions are the documented path.</p></div>
-      <div class="card"><h3>Focus is terminal-specific</h3><p>Whether a window truly comes forward depends on your terminal and OS, and must be verified on the actual device.</p></div>
+      <div class="card">
+        <h3 data-l="en">No live state in launcher-only mode</h3>
+        <h3 data-l="ko">런처 전용 모드에는 실시간 상태가 없습니다</h3>
+        <p data-l="en">Launchers cannot display state, distinguish a hold, or read a dial. That is the price of needing no compiled plugin.</p>
+        <p data-l="ko">런처는 상태를 표시하거나, 홀드를 구분하거나, 다이얼을 읽을 수 없습니다. 플러그인을 컴파일하지 않아도 되는 대가입니다.</p>
+      </div>
+      <div class="card">
+        <h3 data-l="en">No prebuilt plugin binary</h3>
+        <h3 data-l="ko">미리 빌드된 플러그인 바이너리 없음</h3>
+        <p data-l="en">The plugin template must be adapted and built with the current official Stream Deck SDK on your machine.</p>
+        <p data-l="ko">플러그인 템플릿은 현행 공식 Stream Deck SDK로 직접 적용하고 빌드해야 합니다.</p>
+      </div>
+      <div class="card">
+        <h3 data-l="en">No arbitrary profile editing</h3>
+        <h3 data-l="ko">임의의 프로필 편집 없음</h3>
+        <p data-l="en">The official plugin boundary offers no safe generic API for rewriting profiles or driving unrelated third-party actions. Multi Actions are the documented path.</p>
+        <p data-l="ko">공식 플러그인 경계는 프로필을 다시 쓰거나 관련 없는 서드파티 액션을 조작할 안전한 범용 API를 제공하지 않습니다. 문서화된 방법은 Multi Action입니다.</p>
+      </div>
+      <div class="card">
+        <h3 data-l="en">Focus is terminal-specific</h3>
+        <h3 data-l="ko">포커스 동작은 터미널마다 다릅니다</h3>
+        <p data-l="en">Whether a window truly comes forward depends on your terminal and OS, and must be verified on the actual device.</p>
+        <p data-l="ko">창이 실제로 앞으로 나오는지는 사용하는 터미널과 OS에 달려 있으며, 실제 장치에서 확인해야 합니다.</p>
+      </div>
     </div>
   </div>
 </section>
 
 <footer>
   <div class="wrap foot-in">
-    <span>MIT · v3.0.0 · built for people who would rather press a key than alt-tab.</span>
+    <span data-l="en">MIT · v3.0.0 · built for people who would rather press a key than alt-tab.</span>
+    <span data-l="ko">MIT · v3.0.0 · alt-tab 대신 키 하나 누르고 싶은 사람들을 위해.</span>
     <span class="foot-links">
-      <a href="https://github.com/cskwork/streamdeck-agent-cockpit">Repository</a>
-      <a href="https://github.com/cskwork/streamdeck-agent-cockpit/blob/main/INSTALL.md">Install</a>
+      <a href="https://github.com/cskwork/streamdeck-agent-cockpit"><span data-l="en">Repository</span><span data-l="ko">저장소</span></a>
+      <a href="https://github.com/cskwork/streamdeck-agent-cockpit/blob/main/INSTALL.md"><span data-l="en">Install</span><span data-l="ko">설치</span></a>
       <a href="https://github.com/cskwork/streamdeck-agent-cockpit/blob/main/skills/streamdeck-agent-cockpit/SKILL.md">SKILL.md</a>
-      <a href="https://github.com/cskwork/streamdeck-agent-cockpit/blob/main/CHANGELOG.md">Changelog</a>
+      <a href="https://github.com/cskwork/streamdeck-agent-cockpit/blob/main/CHANGELOG.md"><span data-l="en">Changelog</span><span data-l="ko">변경 내역</span></a>
     </span>
   </div>
 </footer>
 
 <script>
-  // install tabs
+  // ---- language switch ----
+  const TITLES = {
+    en: 'Stream Deck Agent Cockpit — hardware controls for Claude Code, Codex, Pi, and JCode',
+    ko: 'Stream Deck Agent Cockpit — Claude Code, Codex, Pi, JCode를 위한 하드웨어 컨트롤'
+  };
+  const langButtons = document.querySelectorAll('[data-set-lang]');
+
+  function setLang(lang, persist) {
+    document.documentElement.setAttribute('data-lang', lang);
+    document.documentElement.setAttribute('lang', lang);
+    document.title = TITLES[lang];
+    langButtons.forEach(b => b.setAttribute('aria-pressed', String(b.dataset.setLang === lang)));
+    if (persist) {
+      try { localStorage.setItem('sdac-lang', lang); } catch (e) {}
+      const url = new URL(location.href);
+      url.searchParams.set('lang', lang);
+      history.replaceState(null, '', url);
+    }
+  }
+
+  setLang(document.documentElement.getAttribute('data-lang'), false);
+  langButtons.forEach(b => b.addEventListener('click', () => setLang(b.dataset.setLang, true)));
+
+  // ---- install tabs ----
   const tabs = document.querySelectorAll('.tab');
   tabs.forEach(t => t.addEventListener('click', () => {
     tabs.forEach(o => {
@@ -627,7 +833,7 @@ python3 scripts/smoke_test.py</pre>
     });
   }));
 
-  // copy buttons
+  // ---- copy buttons ----
   document.querySelectorAll('.copy').forEach(b => b.addEventListener('click', async () => {
     try {
       await navigator.clipboard.writeText(b.dataset.copy);

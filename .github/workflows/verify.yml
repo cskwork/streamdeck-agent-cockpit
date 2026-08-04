@@ -42,6 +42,16 @@ jobs:
         run: |
           diff -u skills/streamdeck-agent-cockpit/SKILL.md \
                   .cursor/skills/streamdeck-agent-cockpit/SKILL.md
+      - name: Landing page language blocks are paired
+        run: |
+          en=$(grep -o 'data-l="en"' docs/index.html | wc -l | tr -d ' ')
+          ko=$(grep -o 'data-l="ko"' docs/index.html | wc -l | tr -d ' ')
+          echo "en=$en ko=$ko"
+          [ "$en" -eq "$ko" ] || {
+            echo "::error::landing page has $en English blocks but $ko Korean blocks"
+            exit 1
+          }
+
       - name: Manifests are valid JSON
         run: |
           for f in plugin.json gemini-extension.json \
