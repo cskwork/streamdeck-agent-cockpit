@@ -12,6 +12,14 @@ defaults:
 jobs:
   checks:
     runs-on: ${{ matrix.os }}
+    # bash on every OS: the Windows default shell is pwsh, which turns a native
+    # command's stderr and exit status into its own error semantics. unittest
+    # writes all of its output to stderr, so the step could fail while every
+    # test passed.
+    defaults:
+      run:
+        shell: bash
+        working-directory: skills/streamdeck-agent-cockpit
     strategy:
       fail-fast: false
       matrix:
@@ -25,7 +33,12 @@ jobs:
       - name: Byte-compile
         run: python -m compileall -q bin scripts tests
       - name: Unit tests
-        run: python -m unittest discover -s tests -v
+        run: |
+          set +e
+          python -m unittest discover -s tests -v
+          code=$?
+          echo "unittest exit code: $code"
+          exit $code
       - name: Validate example config
         run: python scripts/validate_cockpit.py assets/cockpit.example.json
       - name: Smoke test
