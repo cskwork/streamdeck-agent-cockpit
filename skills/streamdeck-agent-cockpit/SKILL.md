@@ -176,6 +176,7 @@ Ask whether the user also wants sessions they started by hand — a Claude Code 
 1. Predeclare slots (`session.<agent>.slot1` … `slotN`); an unlisted session cannot report to the daemon.
 2. Bind live sessions to slots with an agent hook, never by scraping terminal titles.
 3. Give slots `probe` and `focus` only. Leave interrupt to multiplexer-backed sessions.
+4. On macOS, focus matches the recorded tty. Windows Terminal has no scriptable tty, so pass `focus_terminal.py --tab-title` with the tab's exact title instead.
 4. Add separate launch controls for new sessions, so both needs are covered without one weakening the other.
 
 Start from `assets/cockpit.live-sessions.example.json`, which combines four attached slots with one tmux launch control. See `references/session-adapters.md` for the ancestry and tty rules this depends on.
@@ -205,12 +206,19 @@ python3 bin/cockpitctl.py --config path/to/cockpit.json \
 ```
 
 For Claude Code, `bin/claude_hook.py` is the reference bridge and
-`bin/install_claude_hooks.py` registers it append-only and idempotently. It maps
-`SessionStart`/`Stop` to `idle`, `UserPromptSubmit` to `running`, and
-`Notification` to `needs_attention`. Preview with `--dry-run`, back up the
-settings file before the first write, and tell the user that sessions already
-running when the bridge is installed stay invisible until they restart. Other
-agents need their own bridge; do not assume one exists.
+`bin/install_claude_hooks.py` registers it append-only and idempotently. By
+default it maps `SessionStart`/`Stop` to `idle`, `UserPromptSubmit` to
+`running`, and `Notification` to `needs_attention`. `--extended` adds the tool,
+permission, elicitation, subagent, task, and compaction events, which are what
+make `blocked` and `failed` reachable — at the cost of running the bridge on
+every tool call. Offer it as a second step, not the default.
+
+Confirm every hook event name against the installed harness before registering
+it: a name the harness does not dispatch fails silently and looks exactly like
+an idle session. Preview with `--dry-run`, back up the settings file before the
+first write, and tell the user that sessions already running when the bridge is
+installed stay invisible until they restart. Other agents need their own bridge;
+do not assume one exists.
 
 A percentage is allowed only when the workflow emits a real numerator/denominator or explicit percentage. Otherwise show a state label, activity, age, and source.
 

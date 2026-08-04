@@ -89,6 +89,22 @@ class SlotClaimsTest(unittest.TestCase):
         self.assertEqual(owner.get("pid"), os.getpid())
         self.assertEqual(owner.get("tty"), "")
 
+    def test_pid_alive_rejects_nonsense_without_platform_calls(self) -> None:
+        for value in (None, 0, -1, "", "abc", 1.5):
+            self.assertFalse(slotclaims.pid_alive(value))  # type: ignore[arg-type]
+
+    def test_pid_alive_uses_the_win32_path_on_windows(self) -> None:
+        seen = []
+        original_name, original_win32 = os.name, slotclaims._pid_alive_windows
+        slotclaims._pid_alive_windows = lambda pid: seen.append(pid) or True  # type: ignore[assignment]
+        os.name = "nt"  # type: ignore[misc]
+        try:
+            self.assertTrue(slotclaims.pid_alive(4321))
+        finally:
+            os.name = original_name  # type: ignore[misc]
+            slotclaims._pid_alive_windows = original_win32  # type: ignore[assignment]
+        self.assertEqual(seen, [4321])
+
 
 if __name__ == "__main__":
     unittest.main()

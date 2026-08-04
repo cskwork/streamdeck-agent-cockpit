@@ -5,9 +5,14 @@ Append-only and idempotent: existing hook blocks are never rewritten, reordered,
 or removed, and re-running adds nothing. Always preview with `--dry-run` first,
 and keep a backup of the settings file before the first write.
 
-Events registered, matching the state mapping in `claude_hook.py`:
+Events registered by default:
 
     SessionStart · UserPromptSubmit · Notification · Stop · SessionEnd
+
+`--extended` adds the finer-grained events `claude_hook.py` also maps. They
+give a key that tracks tool-by-tool progress and can show `blocked` and
+`failed`, at the cost of running the bridge on every tool call. Start without
+it; add it once the basic events are behaving.
 """
 
 from __future__ import annotations
@@ -28,6 +33,24 @@ EVENTS = {
     "Notification": True,
     "Stop": False,
     "SessionEnd": True,
+}
+
+# Tool events take a tool-name matcher; compaction events take "manual"/"auto".
+EXTENDED_EVENTS = {
+    "PreToolUse": True,
+    "PostToolUse": True,
+    "PostToolUseFailure": True,
+    "PermissionRequest": True,
+    "PermissionDenied": True,
+    "Elicitation": False,
+    "ElicitationResult": False,
+    "SubagentStart": False,
+    "SubagentStop": False,
+    "TaskCreated": False,
+    "TaskCompleted": False,
+    "PreCompact": True,
+    "PostCompact": True,
+    "StopFailure": False,
 }
 
 
@@ -55,8 +78,14 @@ def main() -> int:
                         help="Claude Code settings file to modify")
     parser.add_argument("--interpreter", default=sys.executable,
                         help="Absolute path to a Python 3.10+ interpreter")
+    parser.add_argument("--extended", action="store_true",
+                        help="Also register the finer-grained tool and lifecycle events")
     parser.add_argument("--dry-run", action="store_true")
     args = parser.parse_args()
+
+    events = dict(EVENTS)
+    if args.extended:
+        events.update(EXTENDED_EVENTS)
 
     settings = Path(os.path.expanduser(args.settings))
     try:
@@ -71,7 +100,7 @@ def main() -> int:
     command = command_string(args.interpreter)
     hooks = data.setdefault("hooks", {})
     added = []
-    for event, with_matcher in EVENTS.items():
+    for event, with_matcher in events.items():
         blocks = hooks.setdefault(event, [])
         if already_present(blocks):
             continue

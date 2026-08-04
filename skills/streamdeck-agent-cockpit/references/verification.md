@@ -69,6 +69,26 @@ When slots bind to sessions the user started by hand:
 
 Sessions started before the hook bridge was installed will not appear. State that as a limitation instead of retrying.
 
+With `--extended` registered, also confirm the two states the default set cannot
+reach. Feed the bridge a payload directly rather than waiting for the condition:
+
+```bash
+echo '{"session_id":"CHECK","hook_event_name":"PermissionDenied"}' | python3 bin/claude_hook.py
+echo '{"session_id":"CHECK","hook_event_name":"StopFailure"}'     | python3 bin/claude_hook.py
+```
+
+The control must move to `blocked` and then `failed`, with `source` reading
+`claude-hook` and `evidenceTier` reading `reported`. Afterwards send
+`SessionEnd` for the same id and post a report with `ttl: 5` so the test state
+expires instead of sitting on the key for its full TTL. TTLs below 5 seconds are
+rejected, so a smaller value silently leaves the state in place.
+
+## Windows Terminal checks
+
+1. Focus a tab by its exact title; confirm the right tab comes forward.
+2. Change the tab title, then repeat with the old title; confirm a non-zero exit and no focus change.
+3. Confirm the title is unique across open tabs — the first match wins.
+
 ## Plugin checks
 
 - Invalid/missing `controlId` is visible.

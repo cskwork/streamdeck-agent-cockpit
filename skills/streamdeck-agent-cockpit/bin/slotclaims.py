@@ -55,11 +55,51 @@ def save(data: Dict[str, Any]) -> None:
     tmp.replace(path)
 
 
+def _pid_alive_windows(pid: int) -> bool:
+    """Ask the Win32 API directly; Windows has no signal-0 equivalent.
+
+    `OpenProcess` failing with ERROR_ACCESS_DENIED (5) still proves the process
+    exists, so that case reports alive. A missing process reports
+    ERROR_INVALID_PARAMETER (87) instead.
+    """
+    try:
+        import ctypes
+        from ctypes import wintypes
+
+        query_limited_information = 0x1000
+        still_active = 259
+        kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)  # type: ignore[attr-defined]
+        kernel32.OpenProcess.argtypes = [wintypes.DWORD, wintypes.BOOL, wintypes.DWORD]
+        kernel32.OpenProcess.restype = wintypes.HANDLE
+        kernel32.GetExitCodeProcess.argtypes = [wintypes.HANDLE, ctypes.POINTER(wintypes.DWORD)]
+        kernel32.GetExitCodeProcess.restype = wintypes.BOOL
+        kernel32.CloseHandle.argtypes = [wintypes.HANDLE]
+        handle = kernel32.OpenProcess(query_limited_information, False, pid)
+        if not handle:
+            return ctypes.get_last_error() == 5  # type: ignore[attr-defined]
+        try:
+            code = wintypes.DWORD()
+            got = kernel32.GetExitCodeProcess(handle, ctypes.byref(code))
+            return bool(got) and code.value == still_active
+        finally:
+            kernel32.CloseHandle(handle)
+    except (ImportError, OSError, AttributeError):
+        return False
+
+
 def pid_alive(pid: Optional[int]) -> bool:
     if not pid:
         return False
     try:
-        os.kill(int(pid), 0)
+        value = int(pid)
+    except (TypeError, ValueError):
+        return False
+    if value <= 0:
+        return False
+    if os.name == "nt":
+        return _pid_alive_windows(value)
+    try:
+        os.kill(value, 0)
     except (OSError, ValueError):
         return False
     return True

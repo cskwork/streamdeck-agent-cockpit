@@ -1,5 +1,13 @@
 # Changelog
 
+## 3.2.0 — Windows Terminal focus and the full Claude Code event set
+
+- Added `windows_terminal_uia.ps1` and a `--tab-title` mode on `focus_terminal.py`. Windows Terminal exposes no scriptable tty, so a tab is addressed by exact title through UI Automation. Because the title is supplied rather than discovered, that path does not consult slot bookkeeping and reports an honest failure when no tab matches. Not verified on Windows hardware.
+- `slotclaims.pid_alive` now asks the Win32 API on Windows instead of relying on `os.kill(pid, 0)`, which has no equivalent there. `OpenProcess` failing with `ERROR_ACCESS_DENIED` still proves the process exists and reports alive.
+- Extended the Claude Code hook mapping from three events to sixteen, adding tool, permission, elicitation, subagent, task, and compaction events. This introduces two states the bridge could not previously report: `blocked` on `PermissionDenied` and `failed` on `StopFailure`. Every event was checked against the installed Claude Code build — in the hook reference it ships or by its dispatcher symbol — rather than taken from memory.
+- `Notification` now prefers the documented `notification_type` field and keeps the message-substring match as a fallback.
+- The finer-grained events are opt-in behind `install_claude_hooks.py --extended`, because they run the bridge on every tool call. TTLs are unchanged, so the default registration behaves exactly as before.
+
 ## 3.1.1 — Windows CI fix
 
 - `slotclaims._ps` returns `None` off POSIX instead of spawning `ps`, which hung the Windows job until it was cancelled. Ancestry and tty discovery were always POSIX-only; that is now explicit in code, tests, and docs.

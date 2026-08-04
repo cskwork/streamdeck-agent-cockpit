@@ -18,7 +18,7 @@
 
 <p align="center">
   <img alt="license" src="https://img.shields.io/badge/license-MIT-10B981">
-  <img alt="version" src="https://img.shields.io/badge/version-3.1.1-10B981">
+  <img alt="version" src="https://img.shields.io/badge/version-3.2.0-10B981">
   <img alt="python" src="https://img.shields.io/badge/python-3.9%2B%20stdlib%20only-10B981">
   <img alt="no mcp" src="https://img.shields.io/badge/MCP-not%20required-10B981">
 </p>
@@ -296,16 +296,26 @@ python3 ~/.agent-cockpit/bin/install_claude_hooks.py
 | `Notification` (승인·대기·입력 요청) | `CHECK` |
 | `SessionEnd` | 슬롯 해제, 키는 `OFF`로 |
 
+더 세밀하게 보고 싶다면 `--extended`로 도구·권한·입력 요청·서브에이전트·태스크·압축 이벤트까지 등록할 수 있습니다. 권한이 거부되면 `BLOCKED`, 턴이 오류로 끝나면 `FAILED`가 키에 뜹니다. 대신 브리지가 도구 호출마다 실행되므로, 처음에는 빼고 시작하세요.
+
+```bash
+python3 ~/.agent-cockpit/bin/install_claude_hooks.py --extended --dry-run
+```
+
 키 라벨에는 세션의 작업 디렉터리 이름만 들어갑니다. 프롬프트 내용이나 모델 출력은 절대 올라가지 않습니다.
 
-슬롯을 탭하면 해당 창이 앞으로 나옵니다. `focus_terminal.py`가 iTerm2와 macOS 터미널을 지원하며, 슬롯을 점유할 때 기록해 둔 tty로 창을 찾습니다.
+슬롯을 탭하면 해당 창이 앞으로 나옵니다. macOS에서는 `focus_terminal.py`가 iTerm2와 macOS 터미널을 지원하며, 슬롯을 점유할 때 기록해 둔 tty로 창을 찾습니다. Windows Terminal은 스크립트로 읽을 수 있는 tty가 없어서 탭 제목으로 정확히 지정합니다.
+
+```bash
+python3 ~/.agent-cockpit/bin/focus_terminal.py --tab-title "Claude · Main"
+```
 
 이 방식의 한계는 모두 의도된 것입니다.
 
 - **브리지를 설치하기 전부터 돌던 세션은 보이지 않습니다.** 해당 세션을 재시작해야 잡힙니다.
 - **슬롯 수는 정해져 있습니다.** 전부 사용 중이면 새 세션은 무시됩니다. 기존 세션을 밀어내지 않습니다.
 - **붙잡은 슬롯에는 interrupt 제스처가 없습니다.** 터미널 자동화로 `Ctrl-C`를 안전하게 보낼 방법이 없어서, interrupt는 `tmux send-keys`가 정확히 동작하는 tmux 세션에만 둡니다.
-- **macOS 전용입니다.** 기본 probe·포커스 헬퍼는 `ps` 조상 추적과 AppleScript에 의존합니다. 다른 플랫폼은 같은 어댑터에 자체 명령을 넣어야 합니다.
+- **슬롯 배정은 macOS 전용입니다.** 실행 중인 세션을 슬롯에 묶는 과정이 `ps` 조상 추적과 AppleScript에 의존합니다. Windows Terminal 포커스는 동작하지만, 탭 제목은 발견한 값이 아니라 직접 정한 값이라 그 탭 뒤의 세션에 대해서는 아무것도 보증하지 않습니다.
 - **터미널 제목은 읽지 않습니다.** 쓸 만해 보이지만 "생각 중"과 "승인 대기 중"을 구분하지 못합니다.
 
 ## 검증
