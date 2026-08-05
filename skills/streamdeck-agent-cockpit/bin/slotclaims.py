@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import subprocess
 import time
 from pathlib import Path
@@ -22,6 +23,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 STALE_AFTER_SECONDS = 6 * 3600
 DEFAULT_SLOT_COUNT = 4
+HERDR_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]{0,159}$")
 
 
 def cockpit_home() -> Path:
@@ -53,6 +55,53 @@ def save(data: Dict[str, Any]) -> None:
     tmp.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
     os.chmod(tmp, 0o600)
     tmp.replace(path)
+
+
+def herdr_context() -> Dict[str, str]:
+    """Return the caller's Herdr identifiers only when they are trustworthy.
+
+    Hooks inherit these variables from a Herdr-managed agent pane.  They are
+    evidence for the claim, not a focus target: the focus adapter re-resolves
+    the agent session through Herdr on every button press so pane moves remain
+    safe.
+    """
+    if os.environ.get("HERDR_ENV") != "1":
+        return {}
+    values = {
+        "herdrWorkspaceId": os.environ.get("HERDR_WORKSPACE_ID", "").strip(),
+        "herdrTabId": os.environ.get("HERDR_TAB_ID", "").strip(),
+        "herdrPaneId": os.environ.get("HERDR_PANE_ID", "").strip(),
+    }
+    if not all(HERDR_ID_RE.fullmatch(value) for value in values.values()):
+        return {}
+    return values
+
+
+def release_missing_herdr_claims(
+    data: Dict[str, Any],
+    live_session_ids: set[str],
+    *,
+    agent: Optional[str] = None,
+) -> List[str]:
+    """Release only explicitly Herdr-backed claims no longer reported live.
+
+    Legacy tty claims are intentionally left alone.  This prevents a Herdr
+    hook from deleting a separate, ordinary iTerm session that happens to use
+    the same agent type.
+    """
+    released: List[str] = []
+    slots = data.get("slots", {})
+    if not isinstance(slots, dict):
+        return released
+    for slot, claim in list(slots.items()):
+        if not isinstance(claim, dict) or not claim.get("herdrPaneId"):
+            continue
+        if agent and claim.get("agent") != agent:
+            continue
+        if str(claim.get("agentSessionId") or "") not in live_session_ids:
+            slots.pop(slot, None)
+            released.append(slot)
+    return released
 
 
 def _pid_alive_windows(pid: int) -> bool:
@@ -190,6 +239,7 @@ def acquire(
     agent_session_id: str,
     agent: str = "claude",
     count: int = DEFAULT_SLOT_COUNT,
+    live_herdr_session_ids: Optional[set[str]] = None,
 ) -> Optional[str]:
     """Return the slot for this session, claiming a free one when needed.
 
@@ -202,7 +252,15 @@ def acquire(
         return existing
     slots = data.setdefault("slots", {})
     for slot in slot_ids(agent, count):
-        if not claim_is_live(slots.get(slot)):
+        claim = slots.get(slot)
+        if (
+            live_herdr_session_ids is not None
+            and isinstance(claim, dict)
+            and claim.get("herdrPaneId")
+            and str(claim.get("agentSessionId") or "") in live_herdr_session_ids
+        ):
+            continue
+        if not claim_is_live(claim):
             return slot
     return None
 

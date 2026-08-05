@@ -121,6 +121,9 @@ def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
     report.add_argument("--ttl", type=int)
     report.add_argument("--source", default="reporter")
 
+    clear = sub.add_parser("clear", help="Clear one cached semantic session report")
+    clear.add_argument("session_id")
+
     return parser.parse_args(argv)
 
 
@@ -148,6 +151,10 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
                     payload[key] = value
             data = build_client(args).request(
                 "POST", f"/v1/sessions/{quote(args.session_id, safe='')}/report", payload
+            )
+        elif args.command == "clear":
+            data = build_client(args).request(
+                "DELETE", f"/v1/sessions/{quote(args.session_id, safe='')}" + "/report"
             )
         else:
             raise RuntimeError(f"Unsupported command: {args.command}")
