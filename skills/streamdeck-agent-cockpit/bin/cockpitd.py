@@ -402,6 +402,12 @@ class CockpitRuntime:
             base["source"] = base["session"]["source"]
         else:
             base.update({"state": "available", "semantic": False, "source": "config"})
+        appearance = self.config.get("appearance", {})
+        state_styles = appearance.get("states", {}) if isinstance(appearance, Mapping) else {}
+        state_style = state_styles.get(base["state"], {}) if isinstance(state_styles, Mapping) else {}
+        suffix = state_style.get("titleSuffix") if isinstance(state_style, Mapping) else None
+        if isinstance(suffix, str) and suffix.strip():
+            base["display"] = {"titleSuffix": suffix.strip()[:32]}
         return base
 
     def _session_command(self, session_id: str, name: str) -> Mapping[str, Any]:

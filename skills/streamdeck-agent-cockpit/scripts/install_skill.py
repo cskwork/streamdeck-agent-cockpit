@@ -17,7 +17,14 @@ TARGETS = {
     "agents": Path("~/.agents/skills/streamdeck-agent-cockpit"),
     "jcode": Path("~/.jcode/skills/streamdeck-agent-cockpit"),
 }
-IGNORE = shutil.ignore_patterns("__pycache__", "*.pyc", ".DS_Store", ".git")
+IGNORE = shutil.ignore_patterns(
+    "__pycache__",
+    "*.pyc",
+    ".DS_Store",
+    ".git",
+    "node_modules",
+    "logs",
+)
 
 
 def expand(path: Path | str) -> Path:

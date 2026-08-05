@@ -38,6 +38,7 @@ Claude Code · Codex · Pi · JCode · another CLI
 | Architecture or mode selection | `references/architecture.md` |
 | Configuring buttons and gestures | `references/control-model.md` |
 | Claude/Codex/Pi/JCode sessions | `references/session-adapters.md` |
+| Herdr workspace/tab/pane switching | `references/session-adapters.md` |
 | Status and progress semantics | `references/progress-contract.md` |
 | Building or extending the plugin | `references/plugin-playbook.md` |
 | Security review | `references/safety.md` |
@@ -171,8 +172,10 @@ general profile database editor.
 3. Run `scripts/streamdeck_profile.py` with the exact profile root, page UUID,
    and launcher/title pairs. It verifies the profile name, refuses occupied
    keys unless `--replace` is explicitly supplied for an existing built-in
-   **Open** action, creates a timestamped full-profile backup, and atomically
-   changes only that page's `manifest.json`.
+   **Open** action or this skill's owned Agent Cockpit action, creates a
+   timestamped full-profile backup, and atomically changes only that page's
+   `manifest.json`. Use `--plugin-control ROW,COLUMN=CONTROL_ID|TITLE` when the
+   native plugin is installed and live state must render on the key.
 4. Reopen Stream Deck and verify the page and key titles in the application.
 
 Example:
@@ -202,6 +205,11 @@ For each Claude Code, Codex, Pi, or JCode session:
 7. Verify focus behavior in the actual terminal; “process started” is not proof the desired window became active.
 
 Prefer a multiplexer for durable sessions. `tmux` is the bundled reference adapter, not a mandatory dependency. A custom adapter must provide the same contract: probe, launch, focus, optional resume, interrupt, and evidence-backed state.
+
+For Herdr-managed tabs or panes, run the adapter setup and focus checks from a
+Herdr-managed pane (`HERDR_ENV=1`). Bind each control to a stable Herdr
+workspace/tab/pane identity obtained from that environment; never infer a
+target from tab order or visible title alone. See `references/session-adapters.md`.
 
 Ask whether the user also wants sessions they started by hand — a Claude Code tab already open in iTerm2 — to appear on the deck. Most do, and a cockpit that only drives what it launched is half a cockpit. That path is available but weaker, so keep it separate from launch controls rather than merging the two:
 
@@ -267,7 +275,23 @@ A percentage is allowed only when the workflow emits a real numerator/denominato
 
 ### 7. Build or extend the Stream Deck plugin only when required
 
-Use the current official Stream Deck SDK scaffold, then adapt `templates/streamdeck-plugin/`.
+Use the current official Stream Deck SDK scaffold. This skill now includes a
+buildable generic action in `streamdeck-plugin/`; use
+`templates/streamdeck-plugin/` only as the adaptation reference for a different
+scaffold or UUID.
+
+```bash
+cd streamdeck-plugin
+npm ci
+npm test
+npm run typecheck
+npm run build
+python3 ../scripts/install_streamdeck_plugin.py --force
+```
+
+The current official toolchain requires Node.js 24 or newer. Run the official
+validator only when its network behavior is acceptable in the user's
+environment.
 
 The preferred plugin design is one generic action:
 

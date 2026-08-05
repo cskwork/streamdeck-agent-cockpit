@@ -79,6 +79,12 @@ class RuntimeTests(unittest.TestCase):
                     },
                 },
             },
+            "appearance": {
+                "states": {
+                    "running": {"titleSuffix": "RUN"},
+                    "offline": {"titleSuffix": "OFF"},
+                }
+            },
         }
         self.runtime = cockpitd.CockpitRuntime(self.config)
 
@@ -105,6 +111,14 @@ class RuntimeTests(unittest.TestCase):
         self.assertFalse(stale["semantic"])
         self.assertEqual(stale["state"], "offline")
         self.assertTrue(stale["lastReportStale"])
+
+    def test_control_state_publishes_configured_short_status(self) -> None:
+        self.runtime.report("session.test.main", {"state": "running", "ttl": 5})
+        fresh = self.runtime.control_state("session.test.main")
+        self.assertEqual(fresh["display"], {"titleSuffix": "RUN"})
+        self.runtime.store.data["sessions"]["session.test.main"]["expiresAt"] = time.time() - 1
+        stale = self.runtime.control_state("session.test.main")
+        self.assertEqual(stale["display"], {"titleSuffix": "OFF"})
 
     def test_shell_command_string_is_rejected_by_runtime(self) -> None:
         runner = cockpitd.CommandRunner()

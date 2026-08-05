@@ -12,7 +12,7 @@ import streamDeck, {
   WillDisappearEvent,
 } from "@elgato/streamdeck";
 import { AgentCockpitApi } from "./api.js";
-import { errorImage, imageFor, titleFor } from "./render.js";
+import { errorImage, imageFor } from "./render.js";
 import type { AgentCockpitSettings } from "./types.js";
 
 const DEFAULT_HOLD_MS = 650;
@@ -91,17 +91,17 @@ export class AgentCockpitAction extends SingletonAction<AgentCockpitSettings> {
   ): Promise<void> {
     const controlId = settings.controlId?.trim();
     if (!controlId) {
-      await actionInstance.setTitle("SET\nCONTROL");
+      await actionInstance.setTitle("");
       await actionInstance.setImage(errorImage("controlId missing"));
       return;
     }
     try {
       const state = await new AgentCockpitApi(settings).control(controlId);
-      await actionInstance.setTitle(titleFor(state));
+      await actionInstance.setTitle("");
       await actionInstance.setImage(imageFor(state));
     } catch (error) {
       streamDeck.logger.warn("Agent Cockpit refresh failed", error);
-      await actionInstance.setTitle("NO\nLINK");
+      await actionInstance.setTitle("");
       await actionInstance.setImage(errorImage(error instanceof Error ? error.message : "request failed"));
     }
   }

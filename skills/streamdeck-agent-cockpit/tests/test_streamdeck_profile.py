@@ -44,7 +44,12 @@ class StreamDeckProfileTests(unittest.TestCase):
         self.codex_launcher.write_text("codex", encoding="utf-8")
         self.backups = base / "backups"
 
-    def run_helper(self, *controls: str, replace: bool = False) -> int:
+    def run_helper(
+        self,
+        *controls: str,
+        replace: bool = False,
+        plugin_controls: tuple[str, ...] = (),
+    ) -> int:
         argv = [
             "--profile-root",
             str(self.profile),
@@ -55,6 +60,8 @@ class StreamDeckProfileTests(unittest.TestCase):
         ]
         for control in controls:
             argv.extend(["--control", control])
+        for control in plugin_controls:
+            argv.extend(["--plugin-control", control])
         if replace:
             argv.append("--replace")
         with contextlib.redirect_stdout(io.StringIO()):
@@ -134,6 +141,30 @@ class StreamDeckProfileTests(unittest.TestCase):
             )
         self.assertEqual(result, 2)
         self.assertIn("not a UUID", error.getvalue())
+
+    def test_replaces_open_actions_with_owned_plugin_controls(self) -> None:
+        self.assertEqual(
+            self.run_helper(f"0,0={self.claude_launcher}|Claude Code"), 0
+        )
+        root_before = (self.profile / "manifest.json").read_bytes()
+        other_before = self.other_page.read_bytes()
+
+        result = self.run_helper(
+            replace=True,
+            plugin_controls=(
+                "0,0=session.claude.iterm|Claude 1",
+                "1,0=session.codex.iterm|Codex 1",
+            ),
+        )
+
+        self.assertEqual(result, 0)
+        actions = json.loads(self.page.read_text(encoding="utf-8"))["Controllers"][0]["Actions"]
+        self.assertEqual(actions["0,0"]["UUID"], streamdeck_profile.COCKPIT_ACTION_UUID)
+        self.assertEqual(actions["0,0"]["Settings"]["controlId"], "session.claude.iterm")
+        self.assertFalse(actions["0,0"]["States"][0]["ShowTitle"])
+        self.assertEqual(actions["1,0"]["Settings"]["controlId"], "session.codex.iterm")
+        self.assertEqual((self.profile / "manifest.json").read_bytes(), root_before)
+        self.assertEqual(self.other_page.read_bytes(), other_before)
 
 
 if __name__ == "__main__":

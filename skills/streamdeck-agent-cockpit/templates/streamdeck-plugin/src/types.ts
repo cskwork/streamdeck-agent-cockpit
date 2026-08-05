@@ -30,6 +30,9 @@ export interface ControlState {
   source: string;
   gestures: string[];
   session?: SessionState;
+  display?: {
+    titleSuffix?: string;
+  };
 }
 
 export interface ApiEnvelope<T> {
