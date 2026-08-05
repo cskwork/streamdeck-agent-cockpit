@@ -90,7 +90,7 @@ def command_for(terminal: str, session: str) -> list[str]:
         return ["osascript", "-e", script]
     if terminal == "iterm":
         script = (
-            'tell application "iTerm"\n'
+            'tell application id "com.googlecode.iterm2"\n'
             'activate\n'
             'tell current window\n'
             'create tab with default profile\n'

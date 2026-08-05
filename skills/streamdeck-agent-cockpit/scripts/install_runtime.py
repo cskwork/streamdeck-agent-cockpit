@@ -23,6 +23,8 @@ MANAGED_BIN = [
     ROOT / "bin/windows_terminal_uia.ps1",
     ROOT / "bin/claude_hook.py",
     ROOT / "bin/install_claude_hooks.py",
+    ROOT / "bin/codex_hook.py",
+    ROOT / "bin/install_codex_hooks.py",
     ROOT / "scripts/validate_cockpit.py",
     ROOT / "scripts/generate_launchers.py",
     ROOT / "scripts/probe_environment.py",

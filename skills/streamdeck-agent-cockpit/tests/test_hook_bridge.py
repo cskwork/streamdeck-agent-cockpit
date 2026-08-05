@@ -10,8 +10,10 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "bin"))
 
 import claude_hook  # noqa: E402
+import codex_hook  # noqa: E402
 import focus_terminal  # noqa: E402
 import install_claude_hooks  # noqa: E402
+import install_codex_hooks  # noqa: E402
 
 
 class EventMappingTest(unittest.TestCase):
@@ -55,6 +57,16 @@ class EventMappingTest(unittest.TestCase):
     def test_extended_events_are_opt_in(self) -> None:
         self.assertEqual(set(install_claude_hooks.EVENTS) & set(install_claude_hooks.EXTENDED_EVENTS), set())
 
+    def test_codex_bridge_uses_the_codex_namespace(self) -> None:
+        self.assertEqual(codex_hook.bridge.AGENT, "claude")
+        self.assertIn("codex_hook.py", install_codex_hooks.command_string("python3"))
+
+    def test_codex_registration_covers_session_lifecycle(self) -> None:
+        self.assertEqual(
+            set(install_codex_hooks.EVENTS),
+            {"SessionStart", "UserPromptSubmit", "Stop", "SessionEnd"},
+        )
+
 
 class AppleScriptTest(unittest.TestCase):
     """An unbalanced block compiles to nothing and fails only at focus time.
@@ -86,6 +98,24 @@ class AppleScriptTest(unittest.TestCase):
                     counts[opener], counts[f"end {opener}"],
                     f"{name}: {counts[opener]} `{opener}` vs {counts[f'end {opener}']} `end {opener}`",
                 )
+
+    def test_iterm_script_uses_bundle_identity(self) -> None:
+        self.assertIn(focus_terminal.ITERM2_BUNDLE_ID, focus_terminal.ITERM2)
+
+    def test_iterm_running_check_uses_bundle_identity(self) -> None:
+        captured = {}
+
+        def fake_run(argv, **kwargs):
+            captured["argv"] = argv
+            return type("R", (), {"stdout": "true\n"})()
+
+        original = focus_terminal.subprocess.run
+        focus_terminal.subprocess.run = fake_run  # type: ignore[assignment]
+        try:
+            self.assertTrue(focus_terminal.is_running("iTerm2"))
+        finally:
+            focus_terminal.subprocess.run = original  # type: ignore[assignment]
+        self.assertIn(focus_terminal.ITERM2_BUNDLE_ID, captured["argv"][-1])
 
     @unittest.skipUnless(sys.platform == "darwin", "osacompile is macOS only")
     def test_scripts_compile(self) -> None:

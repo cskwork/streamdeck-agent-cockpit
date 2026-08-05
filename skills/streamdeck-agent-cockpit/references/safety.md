@@ -52,7 +52,9 @@ Do not edit undocumented Stream Deck profile stores by default. When a user
 explicitly requests a change to a user-owned macOS v3 page, use only
 `scripts/streamdeck_profile.py`: it verifies the named profile, creates a full
 timestamped backup, refuses occupied keys, and changes only the explicit page
-manifest. Never edit the root profile registry or unrelated pages/actions.
+manifest. `--replace` is allowed only for an existing built-in **Open** action;
+unrelated or plugin-owned actions remain protected. Never edit the root profile
+registry or unrelated pages/actions.
 On uninstall, remove only owned plugin/runtime/profile data.
 
 ## Supply chain

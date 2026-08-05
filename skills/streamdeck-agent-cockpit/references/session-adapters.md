@@ -111,9 +111,12 @@ tab title is under the user's control) and keep it unique.
 ### macOS terminal automation
 
 iTerm2 and Apple Terminal both expose a documented `tty` property through
-AppleScript, which is what makes tty matching viable. `focus_terminal.py` tries
-each running application in turn and exits non-zero when no pane matches, so a
-missing window reports an honest failure instead of a false success.
+AppleScript, which is what makes tty matching viable. The iTerm2 adapter targets
+the stable bundle identity `com.googlecode.iterm2`, so it also works when the
+application is installed as `iTerm.app` rather than `iTerm2.app`.
+`focus_terminal.py` tries each running application in turn and exits non-zero
+when no pane matches, so a missing window reports an honest failure instead of a
+false success.
 
 Automation permission is requested by macOS on first use and is granted to the
 *calling* process, not to the cockpit. Verify focus from the daemon's own

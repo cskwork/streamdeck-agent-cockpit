@@ -170,8 +170,9 @@ general profile database editor.
    a page from physical coordinates or edit the root `Pages` list yourself.
 3. Run `scripts/streamdeck_profile.py` with the exact profile root, page UUID,
    and launcher/title pairs. It verifies the profile name, refuses occupied
-   keys, creates a timestamped full-profile backup, and atomically changes only
-   that page's `manifest.json`.
+   keys unless `--replace` is explicitly supplied for an existing built-in
+   **Open** action, creates a timestamped full-profile backup, and atomically
+   changes only that page's `manifest.json`.
 4. Reopen Stream Deck and verify the page and key titles in the application.
 
 Example:
@@ -208,9 +209,20 @@ Ask whether the user also wants sessions they started by hand — a Claude Code 
 2. Bind live sessions to slots with an agent hook, never by scraping terminal titles.
 3. Give slots `probe` and `focus` only. Leave interrupt to multiplexer-backed sessions.
 4. On macOS, focus matches the recorded tty. Windows Terminal has no scriptable tty, so pass `focus_terminal.py --tab-title` with the tab's exact title instead.
-4. Add separate launch controls for new sessions, so both needs are covered without one weakening the other.
+5. Add separate launch controls for new sessions, so both needs are covered without one weakening the other.
 
 Start from `assets/cockpit.live-sessions.example.json`, which combines four attached slots with one tmux launch control. See `references/session-adapters.md` for the ancestry and tty rules this depends on.
+
+Claude Code uses `bin/claude_hook.py` and `bin/install_claude_hooks.py`. Codex CLI
+uses the parallel `bin/codex_hook.py` and `bin/install_codex_hooks.py` path;
+register its user-level `~/.codex/hooks.json`, then review and trust the new
+command hook in Codex's `/hooks` screen before expecting a slot to claim.
+Both bridges keep separate slot namespaces and report through the same daemon.
+The daemon's `sessions` keys for attached agents must therefore be the exact
+slot IDs (`session.claude.slot1`, `session.codex.slot1`, and so on), and a
+friendly control ID belongs in the control's `session` field. Renaming only the
+daemon session key makes hook reports return 404 and leaves the Stream Deck key
+offline.
 
 ### 6. Track progress without inventing it
 
