@@ -112,6 +112,12 @@ class RuntimeTests(unittest.TestCase):
         self.assertEqual(stale["state"], "offline")
         self.assertTrue(stale["lastReportStale"])
 
+    def test_clear_report_removes_cached_semantic_state(self) -> None:
+        self.runtime.report("session.test.main", {"state": "running", "ttl": 5})
+        self.assertTrue(self.runtime.clear_report("session.test.main")["cleared"])
+        state = self.runtime.session_state("session.test.main")
+        self.assertFalse(state["semantic"])
+
     def test_control_state_publishes_configured_short_status(self) -> None:
         self.runtime.report("session.test.main", {"state": "running", "ttl": 5})
         fresh = self.runtime.control_state("session.test.main")
@@ -172,6 +178,16 @@ class RuntimeTests(unittest.TestCase):
         with self.assertRaises(HTTPError) as missing:
             urlopen(request, timeout=3)
         self.assertEqual(missing.exception.code, 404)
+
+        self.runtime.report("session.test.main", {"state": "running", "ttl": 5})
+        clear = Request(
+            base + "/v1/sessions/session.test.main/report",
+            headers={"Authorization": f"Bearer {token}"},
+            method="DELETE",
+        )
+        with urlopen(clear, timeout=3) as response:
+            self.assertEqual(response.status, 200)
+        self.assertFalse(self.runtime.session_state("session.test.main")["semantic"])
 
 
 if __name__ == "__main__":

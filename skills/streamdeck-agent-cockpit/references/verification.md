@@ -69,6 +69,31 @@ When slots bind to sessions the user started by hand:
 
 Sessions started before the hook bridge was installed will not appear. State that as a limitation instead of retrying.
 
+## Herdr attached-session checks
+
+Run these from a Herdr-managed pane after `test "${HERDR_ENV:-}" = 1` passes:
+
+1. Run `herdr agent list`; record the agent-session id and current pane id for
+   every deck-backed Claude/Codex session.
+2. Confirm the corresponding claim stores that agent-session id and Herdr
+   metadata. A duplicate tty is not an error when the Herdr ids differ.
+3. Tap a key from a different Herdr tab; confirm its current agent pane is
+   foreground. The daemon command must use `herdr agent focus <pane-id>`.
+4. Move an agent to another pane, tap its existing key, and confirm the new
+   pane is focused. This proves the adapter resolves live agent-session ids
+   rather than replaying an old pane id.
+5. End the agent, tap its old key, and confirm a visible failure with no other
+   pane focused.
+6. Restart Herdr, repeat steps 1–4, and re-run the hooks/migration if a
+   particular agent session has been replaced.
+
+When a hook ends, it clears the cached semantic report through the local daemon.
+For an older claim removed during migration, clear its old display state with:
+
+```bash
+python3 ~/.agent-cockpit/bin/cockpitctl.py clear session.claude.slot1
+```
+
 For Codex CLI, inspect `~/.codex/hooks.json`, review the new command in Codex's
 `/hooks` screen, and restart the session once. Codex hook trust is separate from
 the file being present; an unreviewed hook does not claim a slot.

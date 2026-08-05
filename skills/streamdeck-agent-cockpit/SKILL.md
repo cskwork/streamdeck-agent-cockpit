@@ -211,6 +211,22 @@ Herdr-managed pane (`HERDR_ENV=1`). Bind each control to a stable Herdr
 workspace/tab/pane identity obtained from that environment; never infer a
 target from tab order or visible title alone. See `references/session-adapters.md`.
 
+For attached Claude/Codex slots, install the runtime update and convert only
+the declared slot sessions. The adapter captures Herdr location metadata in
+the hook claim but resolves the agent-session id through `herdr agent list` on
+every press, so an agent that moves panes is followed safely.
+
+```bash
+python3 scripts/install_runtime.py --target ~/.agent-cockpit --update-runtime
+python3 scripts/configure_herdr_sessions.py --apply
+python3 scripts/migrate_herdr_claims.py --agent claude --drop-unmatched --claim-unclaimed --apply
+python3 scripts/migrate_herdr_claims.py --agent codex --drop-unmatched --claim-unclaimed --apply
+```
+
+The migration commands make backups and only remove unmatched claims for the
+explicit agent namespace. Run their dry-run form first when the claims also
+contain ordinary, non-Herdr terminal sessions.
+
 Ask whether the user also wants sessions they started by hand — a Claude Code tab already open in iTerm2 — to appear on the deck. Most do, and a cockpit that only drives what it launched is half a cockpit. That path is available but weaker, so keep it separate from launch controls rather than merging the two:
 
 1. Predeclare slots (`session.<agent>.slot1` … `slotN`); an unlisted session cannot report to the daemon.

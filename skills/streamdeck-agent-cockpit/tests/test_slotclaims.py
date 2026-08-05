@@ -66,6 +66,21 @@ class SlotClaimsTest(unittest.TestCase):
         self.assertIsNone(slotclaims.acquire(data, "newcomer"))
         self.assertEqual(len(data["slots"]), slotclaims.DEFAULT_SLOT_COUNT)
 
+    def test_live_herdr_claim_is_not_reused_without_a_process_owner(self) -> None:
+        data = {"slots": {
+            "session.claude.slot1": {
+                "agentSessionId": "herdr-a",
+                "agent": "claude",
+                "herdrPaneId": "w1:p1",
+                "pid": None,
+                "updatedAt": time.time(),
+            }
+        }}
+        self.assertEqual(
+            slotclaims.acquire(data, "herdr-b", live_herdr_session_ids={"herdr-a", "herdr-b"}),
+            "session.claude.slot2",
+        )
+
     def test_release_frees_the_slot(self) -> None:
         data = {"slots": {"session.claude.slot1": self.live_claim("a")}}
         self.assertEqual(slotclaims.release(data, "a"), "session.claude.slot1")

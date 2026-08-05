@@ -179,6 +179,15 @@ class StateStore:
             atomic_write_json(self.path, self.data)
         return dict(record)
 
+    def clear(self, session_id: str) -> bool:
+        with self.lock:
+            sessions = self.data.setdefault("sessions", {})
+            if not isinstance(sessions, dict) or session_id not in sessions:
+                return False
+            sessions.pop(session_id, None)
+            atomic_write_json(self.path, self.data)
+            return True
+
 
 class CommandRunner:
     def __init__(self, default_timeout: float = 12.0, dry_run: bool = False):
@@ -563,6 +572,11 @@ class CockpitRuntime:
         )
         return {"ok": True, "sessionId": session_id, "report": record}
 
+    def clear_report(self, session_id: str) -> Dict[str, Any]:
+        if not isinstance(self.sessions.get(session_id), Mapping):
+            raise CockpitError(HTTPStatus.NOT_FOUND, "unknown_session", f"Unknown session: {session_id}")
+        return {"ok": True, "sessionId": session_id, "cleared": self.store.clear(session_id)}
+
 
 class CockpitHandler(BaseHTTPRequestHandler):
     runtime: CockpitRuntime
@@ -651,6 +665,19 @@ class CockpitHandler(BaseHTTPRequestHandler):
                 return
             if len(parts) == 4 and parts[:2] == ["v1", "sessions"] and parts[3] == "report":
                 self._send(HTTPStatus.OK, self.runtime.report(parts[2], payload))
+                return
+            raise CockpitError(HTTPStatus.NOT_FOUND, "not_found", "Unknown endpoint")
+        except CockpitError as exc:
+            self._send(exc.status, {"ok": False, "error": {"code": exc.code, "message": exc.message}})
+        except Exception:
+            self._send(HTTPStatus.INTERNAL_SERVER_ERROR, {"ok": False, "error": {"code": "internal_error", "message": "Internal error"}})
+
+    def do_DELETE(self) -> None:  # noqa: N802
+        try:
+            self._require_auth()
+            parts = self._segments()
+            if len(parts) == 4 and parts[:2] == ["v1", "sessions"] and parts[3] == "report":
+                self._send(HTTPStatus.OK, self.runtime.clear_report(parts[2]))
                 return
             raise CockpitError(HTTPStatus.NOT_FOUND, "not_found", "Unknown endpoint")
         except CockpitError as exc:

@@ -24,6 +24,7 @@ from typing import Any, Dict, Optional, Tuple
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 import slotclaims  # noqa: E402
+import herdr_agent  # noqa: E402
 
 AGENT = "claude"
 SLOT_COUNT = int(os.environ.get("COCKPIT_SLOT_COUNT", "4"))
@@ -123,6 +124,21 @@ def post_report(slot: str, state: str, label: str, detail: str, ttl: int) -> Non
     )
 
 
+def clear_report(slot: str) -> None:
+    from cockpitctl import Client, load_config, read_token  # noqa: E402
+
+    config = load_config(config_path())
+    server = config.get("server", {})
+    client = Client(
+        f"http://{server.get('host', '127.0.0.1')}:{int(server.get('port', 39393))}",
+        read_token(server.get("tokenFile", "~/.agent-cockpit/token")),
+        timeout=5.0,
+    )
+    from urllib.parse import quote
+
+    client.request("DELETE", f"/v1/sessions/{quote(slot, safe='')}/report")
+
+
 def main() -> int:
     try:
         payload = json.loads(sys.stdin.read() or "{}")
@@ -140,8 +156,13 @@ def main() -> int:
     data = slotclaims.load()
 
     if event == "SessionEnd":
-        if slotclaims.release(data, session_id):
+        released = slotclaims.release(data, session_id)
+        if released:
             slotclaims.save(data)
+            try:
+                clear_report(released)
+            except Exception:
+                pass
         return 0
 
     resolved = resolve(event, payload)
@@ -149,7 +170,34 @@ def main() -> int:
         return 0
     state, detail, ttl = resolved
 
-    slot = slotclaims.acquire(data, session_id, AGENT, SLOT_COUNT)
+    herdr = slotclaims.herdr_context()
+    live_herdr_session_ids = None
+    released_herdr_slots: list[str] = []
+    if herdr:
+        try:
+            live_ids = {
+                session_id
+                for agent_info in herdr_agent.live_agents()
+                if agent_info.get("agent") == AGENT
+                for session_id in [herdr_agent.agent_session_id(agent_info)]
+                if session_id
+            }
+            released_herdr_slots = slotclaims.release_missing_herdr_claims(
+                data, live_ids, agent=AGENT
+            )
+            live_herdr_session_ids = live_ids
+        except herdr_agent.HerdrError:
+            # A status bridge must never disturb the agent if Herdr is briefly
+            # unavailable; the existing claim will be retried on its next hook.
+            pass
+
+    slot = slotclaims.acquire(
+        data,
+        session_id,
+        AGENT,
+        SLOT_COUNT,
+        live_herdr_session_ids=live_herdr_session_ids,
+    )
     if slot is None:
         return 0  # every slot is busy; stay silent rather than evict a session
 
@@ -162,8 +210,15 @@ def main() -> int:
         "pid": owner.get("pid"),
         "tty": owner.get("tty"),
         "updatedAt": time.time(),
+        **herdr,
     }
     slotclaims.save(data)
+
+    for released_slot in released_herdr_slots:
+        try:
+            clear_report(released_slot)
+        except Exception:
+            pass
 
     try:
         post_report(slot, state, project_label(cwd), detail, ttl)

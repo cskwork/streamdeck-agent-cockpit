@@ -61,19 +61,50 @@ If that check fails, stop the Herdr-specific setup. An outside process may see
 terminal processes, but it cannot safely prove which Herdr tab or pane should
 receive focus.
 
-From a Herdr-managed pane:
+The bundled adapter uses these verified Herdr commands:
 
-1. Inspect the installed Herdr CLI help and obtain stable workspace/tab/pane
-   identifiers using its supported interface.
-2. Give every Claude or Codex pane a separate cockpit session and control ID.
-3. Configure `probe` and `focus` as argv arrays that target those identifiers;
-   do not target tab index, UI order, or a non-unique title.
-4. Keep the Claude/Codex hook slot ID separate from the Herdr focus target. The
-   hook supplies semantic status; Herdr supplies navigation.
-5. Tap each control from another tab and observe the intended pane become
-   foreground. A zero exit code or a running process is insufficient evidence.
-6. Restart Herdr and repeat the focus test. If an identifier is not durable,
-   regenerate the config explicitly instead of silently focusing a replacement.
+```text
+herdr agent list
+herdr agent focus <pane-id>
+```
+
+`claude_hook.py` and `codex_hook.py` capture the inherited workspace/tab/pane
+metadata when present. `focus_herdr.py` and `herdr_claim_probe.py` do **not**
+trust that stored pane id: on each action they resolve the claim's
+`agentSessionId` through the live agent list, check the agent kind, then focus
+the resolved pane. This follows a moved agent and refuses to focus a pane when
+the claimed agent session has ended.
+
+Install the runtime scripts and convert only predeclared attached slots:
+
+```bash
+python3 scripts/install_runtime.py --target ~/.agent-cockpit --update-runtime
+python3 scripts/configure_herdr_sessions.py --apply
+```
+
+The config uses fixed argv arrays equivalent to:
+
+```json
+{
+  "probe": {
+    "argv": ["/usr/bin/env", "python3", "~/.agent-cockpit/bin/herdr_claim_probe.py", "--slot", "session.claude.slot1"]
+  },
+  "focus": {
+    "argv": ["/usr/bin/env", "python3", "~/.agent-cockpit/bin/focus_herdr.py", "--slot", "session.claude.slot1"]
+  }
+}
+```
+
+Use `migrate_herdr_claims.py --agent <claude|codex>` to adopt claims created
+by older tty-only releases. Add `--claim-unclaimed` to attach live Herdr agents
+that predate the hook bridge, and `--drop-unmatched` to remove stale claims in
+only the selected agent namespace. Both changes are explicit; the default is
+read-only.
+
+Keep the Claude/Codex hook slot ID separate from the Herdr focus target. The
+hook supplies semantic status; Herdr supplies navigation. Tap each control
+from another tab and observe the intended pane become foreground. A zero exit
+code or a running process is insufficient evidence.
 
 Do not claim Herdr per-tab switching is configured or verified from a session
 where `HERDR_ENV` is absent. Report it as configured-but-unverified until the
