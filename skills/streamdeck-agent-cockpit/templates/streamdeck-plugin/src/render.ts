@@ -19,7 +19,10 @@ function compact(value: string, max = 14): string {
 
 export function titleFor(state: ControlState): string {
   const label = compact(state.title || state.controlId, 16);
-  const status = compact((state.session?.state || state.state || "unknown").toUpperCase(), 12);
+  const status = compact(
+    state.display?.titleSuffix || (state.session?.state || state.state || "unknown").toUpperCase(),
+    12,
+  );
   return `${label}\n${status}`;
 }
 
@@ -27,7 +30,7 @@ export function imageFor(state: ControlState): string {
   const status = state.session?.state || state.state || "unknown";
   const source = state.session?.evidenceTier || (state.semantic ? "reported" : "coarse");
   const title = escapeXml(compact(state.title || state.controlId, 14));
-  const statusText = escapeXml(compact(status.toUpperCase(), 12));
+  const statusText = escapeXml(compact(state.display?.titleSuffix || status.toUpperCase(), 12));
   const sourceText = escapeXml(compact(source, 10));
   const svg = `
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 144 144">

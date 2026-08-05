@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Safely add or replace launcher-backed Open actions on one Stream Deck v3 page.
+"""Safely add owned launcher or Agent Cockpit actions on one Stream Deck v3 page.
 
 This is deliberately narrow: it never edits the profile registry, page list, or
 any page other than the explicit page manifest supplied by the caller. The
@@ -19,6 +19,10 @@ import uuid
 from pathlib import Path
 from typing import Any, Dict, Iterable, Optional, Sequence, Tuple
 
+OPEN_ACTION_UUID = "com.elgato.streamdeck.system.open"
+COCKPIT_PLUGIN_UUID = "com.cskwork.agent-cockpit"
+COCKPIT_ACTION_UUID = f"{COCKPIT_PLUGIN_UUID}.control"
+
 
 def parse_control(value: str) -> Tuple[str, Path, str]:
     try:
@@ -37,6 +41,26 @@ def parse_control(value: str) -> Tuple[str, Path, str]:
     return f"{int(row)},{int(column)}", Path(launcher).expanduser().resolve(), title
 
 
+def parse_plugin_control(value: str) -> Tuple[str, str, str]:
+    try:
+        coordinate, payload = value.split("=", 1)
+        control_id, title = payload.rsplit("|", 1)
+        row, column = coordinate.split(",", 1)
+        control_id = control_id.strip()
+        title = title.strip()
+        if not (row.isdigit() and column.isdigit()):
+            raise ValueError
+        if not re.fullmatch(r"[a-z0-9][a-z0-9.-]{0,127}", control_id):
+            raise ValueError
+        if not title:
+            raise ValueError
+    except ValueError as exc:
+        raise argparse.ArgumentTypeError(
+            "plugin control must be ROW,COLUMN=CONTROL_ID|TITLE"
+        ) from exc
+    return f"{int(row)},{int(column)}", control_id, title
+
+
 def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--profile-root", required=True, type=Path)
@@ -45,9 +69,16 @@ def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
     parser.add_argument(
         "--control",
         action="append",
-        required=True,
+        default=[],
         type=parse_control,
         help="ROW,COLUMN=LAUNCHER|TITLE; repeat for each action",
+    )
+    parser.add_argument(
+        "--plugin-control",
+        action="append",
+        default=[],
+        type=parse_plugin_control,
+        help="ROW,COLUMN=CONTROL_ID|TITLE; add an owned Agent Cockpit action",
     )
     parser.add_argument(
         "--backup-dir",
@@ -57,9 +88,12 @@ def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
     parser.add_argument(
         "--replace",
         action="store_true",
-        help="replace only existing built-in Open actions at the requested keys",
+        help="replace only owned Agent Cockpit or built-in Open actions at requested keys",
     )
-    return parser.parse_args(argv)
+    args = parser.parse_args(argv)
+    if not args.control and not args.plugin_control:
+        parser.error("at least one --control or --plugin-control is required")
+    return args
 
 
 def keyed_controller(manifest: Dict[str, Any]) -> Dict[str, Any]:
@@ -95,7 +129,43 @@ def open_action(launcher: Path, title: str) -> Dict[str, Any]:
                 "TitleColor": "#ffffff",
             }
         ],
-        "UUID": "com.elgato.streamdeck.system.open",
+        "UUID": OPEN_ACTION_UUID,
+    }
+
+
+def plugin_action(control_id: str, title: str) -> Dict[str, Any]:
+    return {
+        "ActionID": str(uuid.uuid4()),
+        "LinkedTitle": True,
+        "Name": "Agent Cockpit Control",
+        "Plugin": {
+            "Name": "Agent Cockpit",
+            "UUID": COCKPIT_PLUGIN_UUID,
+            "Version": "0.1.0.0",
+        },
+        "Resources": None,
+        "Settings": {
+            "controlId": control_id,
+            "daemonUrl": "http://127.0.0.1:39393",
+            "tokenFile": "~/.agent-cockpit/token",
+            "holdMs": 650,
+            "pollMs": 1500,
+        },
+        "State": 0,
+        "States": [
+            {
+                "FontFamily": "",
+                "FontSize": 12,
+                "FontStyle": "",
+                "FontUnderline": False,
+                "OutlineThickness": 2,
+                "ShowTitle": False,
+                "Title": title,
+                "TitleAlignment": "middle",
+                "TitleColor": "#ffffff",
+            }
+        ],
+        "UUID": COCKPIT_ACTION_UUID,
     }
 
 
@@ -153,9 +223,17 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             raise RuntimeError("page Keypad Actions is not an object")
 
         controls: Iterable[Tuple[str, Path, str]] = args.control
-        parsed = list(controls)
+        parsed_open = list(controls)
+        parsed_plugin = list(args.plugin_control)
+        parsed = [
+            ("open", coordinate, launcher, title)
+            for coordinate, launcher, title in parsed_open
+        ] + [
+            ("plugin", coordinate, control_id, title)
+            for coordinate, control_id, title in parsed_plugin
+        ]
         seen_coordinates = set()
-        for coordinate, launcher, _title in parsed:
+        for kind, coordinate, payload, _title in parsed:
             if coordinate in seen_coordinates:
                 raise RuntimeError(f"duplicate page key: {coordinate}")
             seen_coordinates.add(coordinate)
@@ -163,16 +241,22 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
                 if not args.replace:
                     raise RuntimeError(f"page key is already occupied: {coordinate}")
                 existing = actions[coordinate]
-                if not isinstance(existing, dict) or existing.get("UUID") != "com.elgato.streamdeck.system.open":
+                existing_uuid = existing.get("UUID") if isinstance(existing, dict) else None
+                allowed = {OPEN_ACTION_UUID} if kind == "open" else {OPEN_ACTION_UUID, COCKPIT_ACTION_UUID}
+                if existing_uuid not in allowed:
                     raise RuntimeError(
-                        f"page key is occupied by a non-Open action: {coordinate}"
+                        f"page key is occupied by an unrelated action: {coordinate}"
                     )
-            if not launcher.is_file():
-                raise RuntimeError(f"launcher does not exist: {launcher}")
+            if kind == "open" and not payload.is_file():
+                raise RuntimeError(f"launcher does not exist: {payload}")
 
         backup = backup_named_profile(profile_root, args.backup_dir, args.profile_name)
-        for coordinate, launcher, title in parsed:
-            actions[coordinate] = open_action(launcher, title)
+        for kind, coordinate, payload, title in parsed:
+            actions[coordinate] = (
+                open_action(payload, title)
+                if kind == "open"
+                else plugin_action(payload, title)
+            )
 
         temporary = page_manifest_path.with_suffix(".json.tmp")
         temporary.write_text(
@@ -188,7 +272,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         "ok": True,
         "pageManifest": str(page_manifest_path),
         "backup": str(backup),
-        "added": [coordinate for coordinate, _launcher, _title in parsed],
+        "added": [coordinate for _kind, coordinate, _payload, _title in parsed],
     }, indent=2))
     return 0
 

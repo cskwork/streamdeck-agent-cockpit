@@ -47,6 +47,38 @@ When tmux is unavailable, define:
 
 This supports WezTerm workspaces, iTerm automation, Windows Terminal, SSH jump hosts, or a custom session manager without changing the daemon API.
 
+## Herdr-managed tabs and panes
+
+Herdr is a session manager, so its installed CLI and runtime context are the
+authority for tab/pane identity and focus behavior. Before configuring or
+testing a Herdr adapter, verify that the calling pane is Herdr-managed:
+
+```bash
+test "${HERDR_ENV:-}" = 1
+```
+
+If that check fails, stop the Herdr-specific setup. An outside process may see
+terminal processes, but it cannot safely prove which Herdr tab or pane should
+receive focus.
+
+From a Herdr-managed pane:
+
+1. Inspect the installed Herdr CLI help and obtain stable workspace/tab/pane
+   identifiers using its supported interface.
+2. Give every Claude or Codex pane a separate cockpit session and control ID.
+3. Configure `probe` and `focus` as argv arrays that target those identifiers;
+   do not target tab index, UI order, or a non-unique title.
+4. Keep the Claude/Codex hook slot ID separate from the Herdr focus target. The
+   hook supplies semantic status; Herdr supplies navigation.
+5. Tap each control from another tab and observe the intended pane become
+   foreground. A zero exit code or a running process is insufficient evidence.
+6. Restart Herdr and repeat the focus test. If an identifier is not durable,
+   regenerate the config explicitly instead of silently focusing a replacement.
+
+Do not claim Herdr per-tab switching is configured or verified from a session
+where `HERDR_ENV` is absent. Report it as configured-but-unverified until the
+foreground checks above pass inside Herdr.
+
 ## Attaching to sessions the user already started
 
 A cockpit that can only drive sessions it launched is half a cockpit. Most agent

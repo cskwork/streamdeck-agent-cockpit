@@ -24,6 +24,11 @@ action UUID: com.agentcockpit.streamdeck.control
 
 Use another reverse-DNS namespace when publishing under an organization.
 
+For this repository's ready-to-build implementation, use
+`streamdeck-plugin/` and the owned UUID `com.cskwork.agent-cockpit`. The
+`templates/streamdeck-plugin/` directory remains a portable adaptation
+reference rather than the install target.
+
 ## One generic action
 
 The action settings should stay small:
@@ -44,6 +49,10 @@ The plugin:
 4. converts SDK input events to canonical gestures;
 5. invokes the named control with no raw command text;
 6. shows an alert/error state on any non-success response.
+
+Use `control.display.titleSuffix` from the daemon for the short key status. This
+keeps configured labels such as `RUN` and `CHECK` authoritative instead of
+rendering raw state names such as `RUNNING` or `NEEDS_ATTENTION`.
 
 The Property Inspector edits the action settings. It does not hold the bearer token or execute commands.
 
