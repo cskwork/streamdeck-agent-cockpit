@@ -69,6 +69,10 @@ When slots bind to sessions the user started by hand:
 
 Sessions started before the hook bridge was installed will not appear. State that as a limitation instead of retrying.
 
+For Codex CLI, inspect `~/.codex/hooks.json`, review the new command in Codex's
+`/hooks` screen, and restart the session once. Codex hook trust is separate from
+the file being present; an unreviewed hook does not claim a slot.
+
 With `--extended` registered, also confirm the two states the default set cannot
 reach. Feed the bridge a payload directly rather than waiting for the condition:
 

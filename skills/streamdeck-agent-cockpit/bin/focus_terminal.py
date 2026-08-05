@@ -27,10 +27,12 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 import slotclaims  # noqa: E402
 
-ITERM2 = '''
+ITERM2_BUNDLE_ID = "com.googlecode.iterm2"
+
+ITERM2 = f'''
 on run argv
   set wantedTty to item 1 of argv
-  tell application "iTerm2"
+  tell application id "{ITERM2_BUNDLE_ID}"
     repeat with w in windows
       repeat with t in tabs of w
         repeat with s in sessions of t
@@ -99,9 +101,14 @@ def focus_windows_terminal(tab_title: str) -> Optional[str]:
 
 
 def is_running(app: str) -> bool:
+    target = (
+        f'application id "{ITERM2_BUNDLE_ID}" is running'
+        if app == "iTerm2"
+        else f'application "{app}" is running'
+    )
     try:
         result = subprocess.run(
-            ["osascript", "-e", f'application "{app}" is running'],
+            ["osascript", "-e", target],
             capture_output=True, text=True, timeout=10,
         )
     except (OSError, subprocess.SubprocessError):

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Safely add launcher-backed Open actions to one owned Stream Deck v3 page.
+"""Safely add or replace launcher-backed Open actions on one Stream Deck v3 page.
 
 This is deliberately narrow: it never edits the profile registry, page list, or
 any page other than the explicit page manifest supplied by the caller. The
@@ -54,6 +54,11 @@ def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
         type=Path,
         default=Path("/private/tmp/streamdeck-agent-cockpit-profile-backups"),
     )
+    parser.add_argument(
+        "--replace",
+        action="store_true",
+        help="replace only existing built-in Open actions at the requested keys",
+    )
     return parser.parse_args(argv)
 
 
@@ -95,7 +100,7 @@ def open_action(launcher: Path, title: str) -> Dict[str, Any]:
 
 
 def backup_named_profile(profile_root: Path, backup_dir: Path, profile_name: str) -> Path:
-    stamp = dt.datetime.now().strftime("%Y%m%d-%H%M%S")
+    stamp = dt.datetime.now().strftime("%Y%m%d-%H%M%S-%f")
     safe_name = re.sub(r"[^A-Za-z0-9._-]+", "-", profile_name).strip(".-") or "profile"
     destination = backup_dir.expanduser().resolve() / f"{safe_name}-{stamp}"
     destination.parent.mkdir(parents=True, exist_ok=True)
@@ -155,7 +160,13 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
                 raise RuntimeError(f"duplicate page key: {coordinate}")
             seen_coordinates.add(coordinate)
             if coordinate in actions:
-                raise RuntimeError(f"page key is already occupied: {coordinate}")
+                if not args.replace:
+                    raise RuntimeError(f"page key is already occupied: {coordinate}")
+                existing = actions[coordinate]
+                if not isinstance(existing, dict) or existing.get("UUID") != "com.elgato.streamdeck.system.open":
+                    raise RuntimeError(
+                        f"page key is occupied by a non-Open action: {coordinate}"
+                    )
             if not launcher.is_file():
                 raise RuntimeError(f"launcher does not exist: {launcher}")
 

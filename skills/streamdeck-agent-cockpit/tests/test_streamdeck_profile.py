@@ -44,7 +44,7 @@ class StreamDeckProfileTests(unittest.TestCase):
         self.codex_launcher.write_text("codex", encoding="utf-8")
         self.backups = base / "backups"
 
-    def run_helper(self, *controls: str) -> int:
+    def run_helper(self, *controls: str, replace: bool = False) -> int:
         argv = [
             "--profile-root",
             str(self.profile),
@@ -55,6 +55,8 @@ class StreamDeckProfileTests(unittest.TestCase):
         ]
         for control in controls:
             argv.extend(["--control", control])
+        if replace:
+            argv.append("--replace")
         with contextlib.redirect_stdout(io.StringIO()):
             return streamdeck_profile.main(argv)
 
@@ -98,6 +100,15 @@ class StreamDeckProfileTests(unittest.TestCase):
         self.assertIn("already occupied", error.getvalue())
         self.assertEqual(len(list(self.backups.iterdir())), backup_count)
 
+        replaced = self.run_helper(
+            f"0,0={self.claude_launcher}|Claude iTerm",
+            replace=True,
+        )
+        self.assertEqual(replaced, 0)
+        updated = json.loads(self.page.read_text(encoding="utf-8"))
+        self.assertEqual(updated["Controllers"][0]["Actions"]["0,0"]["States"][0]["Title"], "Claude iTerm")
+        self.assertEqual(len(list(self.backups.iterdir())), backup_count + 1)
+
         duplicate_error = io.StringIO()
         with contextlib.redirect_stderr(duplicate_error):
             duplicate = self.run_helper(
@@ -106,7 +117,7 @@ class StreamDeckProfileTests(unittest.TestCase):
             )
         self.assertEqual(duplicate, 1)
         self.assertIn("duplicate page key", duplicate_error.getvalue())
-        self.assertEqual(len(list(self.backups.iterdir())), backup_count)
+        self.assertEqual(len(list(self.backups.iterdir())), backup_count + 1)
 
     def test_rejects_non_uuid_page_id_before_reading_outside_profile(self) -> None:
         error = io.StringIO()

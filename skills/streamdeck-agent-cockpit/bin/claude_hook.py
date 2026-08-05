@@ -118,7 +118,7 @@ def post_report(slot: str, state: str, label: str, detail: str, ttl: int) -> Non
             "label": label[:120],
             "detail": detail[:500],
             "ttl": ttl,
-            "source": "claude-hook",
+            "source": f"{AGENT}-hook",
         },
     )
 
