@@ -1,6 +1,6 @@
 ---
 name: streamdeck-agent-cockpit
-description: Use when a user wants a standalone Stream Deck cockpit for Claude Code, Codex, Pi, JCode, or other terminal agents: personalize buttons, launch/focus/resume/interrupt named sessions, display trustworthy local status, create or extend a Stream Deck plugin, or map recurring local workflows to controls. The core path must work without streamdeck-mcp, any MCP server, AgentDeck, or a cloud service.
+description: 'Use when a user wants a standalone Stream Deck cockpit for Claude Code, Codex, Pi, JCode, or other terminal agents: personalize buttons, launch/focus/resume/interrupt named sessions, display trustworthy local status, create or extend a Stream Deck plugin, or map recurring local workflows to controls. The core path must work without streamdeck-mcp, any MCP server, AgentDeck, or a cloud service.'
 ---
 
 # Stream Deck Agent Cockpit
@@ -24,7 +24,7 @@ Claude Code · Codex · Pi · JCode · another CLI
 - Do not require `streamdeck-mcp`, another MCP server, AgentDeck, or a model at runtime.
 - Use the official Stream Deck SDK only when dynamic labels, icons, dials, long-press handling, or live state are needed.
 - Launcher-only mode must remain usable for static tap actions without compiling a plugin.
-- Own only this skill's config, daemon, launchers, plugin UUID, action instances, and optional bundled profile. Never edit undocumented Stream Deck profile databases or unrelated actions.
+- Own only this skill's config, daemon, launchers, plugin UUID, action instances, and optional bundled profile. Do not edit undocumented Stream Deck profile stores by default. When the user explicitly asks to edit a user-owned macOS v3 profile page, use the guarded `scripts/streamdeck_profile.py` helper after creating a backup; never edit the profile registry or unrelated pages/actions.
 - Do not promise generic control of third-party Stream Deck plugins. Integrate them only through a documented plugin/service API or a user-configured Stream Deck Multi Action.
 - Bind controls by stable logical `controlId`, never by physical row/column coordinates in the cockpit config.
 - Execute only commands declared in local configuration. Never accept arbitrary shell text from a button press or HTTP request.
@@ -38,6 +38,7 @@ Claude Code · Codex · Pi · JCode · another CLI
 | Architecture or mode selection | `references/architecture.md` |
 | Configuring buttons and gestures | `references/control-model.md` |
 | Claude/Codex/Pi/JCode sessions | `references/session-adapters.md` |
+| Herdr workspace/tab/pane switching | `references/session-adapters.md` |
 | Status and progress semantics | `references/progress-contract.md` |
 | Building or extending the plugin | `references/plugin-playbook.md` |
 | Security review | `references/safety.md` |
@@ -83,8 +84,6 @@ Use Stream Deck's built-in action to open generated `.command`/`.cmd` launchers.
 **Native-plugin mode**
 
 Use one local generic action bound to a `controlId`. Choose this for dynamic titles/icons, state polling, long press, dial rotation, dial press, or per-control settings. The plugin talks only to `cockpitd` on loopback.
-
-Do not choose native-plugin mode merely because it is more sophisticated.
 
 ### 3. Model the cockpit before implementing it
 
@@ -155,7 +154,41 @@ python3 scripts/generate_launchers.py \
   --output path/to/launchers
 ```
 
-Map the generated tap launcher through the Stream Deck application. Do not automate undocumented profile storage.
+Map the generated tap launcher through the Stream Deck application. For an explicit macOS page edit, follow 4a; do not touch profile storage directly outside the guarded helper.
+
+### 4a. Edit an explicit macOS v3 profile page when the user asks
+
+Page creation is best done in the Stream Deck application. When you cannot drag
+an action out of the application palette yourself, the guarded helper can add
+built-in **Open** actions to one already-created page. This is a
+deliberate exception for an explicitly requested, user-owned profile—not a
+general profile database editor.
+
+1. Close the Stream Deck application after it has saved the new page.
+2. Read the profile root manifest and identify the exact page UUID. Do not infer
+   a page from physical coordinates or edit the root `Pages` list yourself.
+3. Run `scripts/streamdeck_profile.py` with the exact profile root, page UUID,
+   and launcher/title pairs. It verifies the profile name, refuses occupied
+   keys unless `--replace` is explicitly supplied for an existing built-in
+   **Open** action or this skill's owned Agent Cockpit action, creates a
+   timestamped full-profile backup, and atomically changes only that page's
+   `manifest.json`. Use `--plugin-control ROW,COLUMN=CONTROL_ID|TITLE` when the
+   native plugin is installed and live state must render on the key.
+4. Reopen Stream Deck and verify the page and key titles in the application.
+
+Example:
+
+```bash
+python3 scripts/streamdeck_profile.py \
+  --profile-root "$HOME/Library/Application Support/com.elgato.StreamDeck/ProfilesV3/<profile-uuid>.sdProfile" \
+  --page-id <page-uuid> \
+  --control "0,0=$HOME/.agent-cockpit/launchers/session.claude.main.command|Claude Code" \
+  --control "1,0=$HOME/.agent-cockpit/launchers/session.codex.main.command|Codex"
+```
+
+The helper does not install plugins, change smart-profile assignments, or
+touch other pages. Roll back by closing Stream Deck and restoring the backup it
+reports, then reopen the application.
 
 ### 5. Implement session switching conservatively
 
@@ -171,15 +204,49 @@ For each Claude Code, Codex, Pi, or JCode session:
 
 Prefer a multiplexer for durable sessions. `tmux` is the bundled reference adapter, not a mandatory dependency. A custom adapter must provide the same contract: probe, launch, focus, optional resume, interrupt, and evidence-backed state.
 
+For Herdr-managed tabs or panes, run the adapter setup and focus checks from a
+Herdr-managed pane (`HERDR_ENV=1`). Bind each control to a stable Herdr
+workspace/tab/pane identity obtained from that environment; never infer a
+target from tab order or visible title alone. See `references/session-adapters.md`.
+
+For attached Claude/Codex slots, install the runtime update and convert only
+the declared slot sessions. The adapter captures Herdr location metadata in
+the hook claim but resolves the agent-session id through `herdr agent list` on
+every press, so an agent that moves panes is followed safely.
+
+```bash
+python3 scripts/install_runtime.py --target ~/.agent-cockpit --update-runtime
+python3 scripts/configure_herdr_sessions.py --apply
+python3 scripts/migrate_herdr_claims.py --agent claude --drop-unmatched --claim-unclaimed --apply
+python3 scripts/migrate_herdr_claims.py --agent codex --drop-unmatched --claim-unclaimed --apply
+```
+
+The migration commands make backups and only remove unmatched claims for the
+explicit agent namespace. `scripts/configure_herdr_sessions.py` and
+`scripts/migrate_herdr_claims.py` print a `dryRun` preview when `--apply` is
+omitted; preview that way first when the claims also contain ordinary,
+non-Herdr terminal sessions.
+
 Ask whether the user also wants sessions they started by hand — a Claude Code tab already open in iTerm2 — to appear on the deck. Most do, and a cockpit that only drives what it launched is half a cockpit. That path is available but weaker, so keep it separate from launch controls rather than merging the two:
 
 1. Predeclare slots (`session.<agent>.slot1` … `slotN`); an unlisted session cannot report to the daemon.
 2. Bind live sessions to slots with an agent hook, never by scraping terminal titles.
 3. Give slots `probe` and `focus` only. Leave interrupt to multiplexer-backed sessions.
 4. On macOS, focus matches the recorded tty. Windows Terminal has no scriptable tty, so pass `focus_terminal.py --tab-title` with the tab's exact title instead.
-4. Add separate launch controls for new sessions, so both needs are covered without one weakening the other.
+5. Add separate launch controls for new sessions, so both needs are covered without one weakening the other.
 
 Start from `assets/cockpit.live-sessions.example.json`, which combines four attached slots with one tmux launch control. See `references/session-adapters.md` for the ancestry and tty rules this depends on.
+
+Claude Code uses `bin/claude_hook.py` and `bin/install_claude_hooks.py`. Codex CLI
+uses the parallel `bin/codex_hook.py` and `bin/install_codex_hooks.py` path;
+register its user-level `~/.codex/hooks.json`, then review and trust the new
+command hook in Codex's `/hooks` screen before expecting a slot to claim.
+Both bridges keep separate slot namespaces and report through the same daemon.
+The daemon's `sessions` keys for attached agents must therefore be the exact
+slot IDs (`session.claude.slot1`, `session.codex.slot1`, and so on), and a
+friendly control ID belongs in the control's `session` field. Renaming only the
+daemon session key makes hook reports return 404 and leaves the Stream Deck key
+offline.
 
 ### 6. Track progress without inventing it
 
@@ -206,12 +273,12 @@ python3 bin/cockpitctl.py --config path/to/cockpit.json \
 ```
 
 For Claude Code, `bin/claude_hook.py` is the reference bridge and
-`bin/install_claude_hooks.py` registers it append-only and idempotently. By
-default it maps `SessionStart`/`Stop` to `idle`, `UserPromptSubmit` to
-`running`, and `Notification` to `needs_attention`. `--extended` adds the tool,
-permission, elicitation, subagent, task, and compaction events, which are what
-make `blocked` and `failed` reachable — at the cost of running the bridge on
-every tool call. Offer it as a second step, not the default.
+`bin/install_claude_hooks.py` registers it append-only and idempotently. Read
+the default and `--extended` event tables in `references/progress-contract.md`
+before registering anything — the event-to-state mapping lives there, not here.
+`--extended` is what makes `blocked` and `failed` reachable, at the cost of
+running the bridge on every tool call. Offer it as a second step, not the
+default.
 
 Confirm every hook event name against the installed harness before registering
 it: a name the harness does not dispatch fails silently and looks exactly like
@@ -224,7 +291,23 @@ A percentage is allowed only when the workflow emits a real numerator/denominato
 
 ### 7. Build or extend the Stream Deck plugin only when required
 
-Use the current official Stream Deck SDK scaffold, then adapt `templates/streamdeck-plugin/`.
+Use the current official Stream Deck SDK scaffold. This skill now includes a
+buildable generic action in `streamdeck-plugin/`; use
+`templates/streamdeck-plugin/` only as the adaptation reference for a different
+scaffold or UUID.
+
+```bash
+cd streamdeck-plugin
+npm ci
+npm test
+npm run typecheck
+npm run build
+python3 ../scripts/install_streamdeck_plugin.py --force
+```
+
+The current official toolchain requires Node.js 24 or newer. Run the official
+validator only when its network behavior is acceptable in the user's
+environment.
 
 The preferred plugin design is one generic action:
 
