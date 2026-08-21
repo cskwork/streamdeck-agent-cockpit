@@ -1,6 +1,6 @@
 ---
 name: streamdeck-agent-cockpit
-description: Use when a user wants a standalone Stream Deck cockpit for Claude Code, Codex, Pi, JCode, or other terminal agents: personalize buttons, launch/focus/resume/interrupt named sessions, display trustworthy local status, create or extend a Stream Deck plugin, or map recurring local workflows to controls. The core path must work without streamdeck-mcp, any MCP server, AgentDeck, or a cloud service.
+description: 'Use when a user wants a standalone Stream Deck cockpit for Claude Code, Codex, Pi, JCode, or other terminal agents: personalize buttons, launch/focus/resume/interrupt named sessions, display trustworthy local status, create or extend a Stream Deck plugin, or map recurring local workflows to controls. The core path must work without streamdeck-mcp, any MCP server, AgentDeck, or a cloud service.'
 ---
 
 # Stream Deck Agent Cockpit
@@ -85,8 +85,6 @@ Use Stream Deck's built-in action to open generated `.command`/`.cmd` launchers.
 
 Use one local generic action bound to a `controlId`. Choose this for dynamic titles/icons, state polling, long press, dial rotation, dial press, or per-control settings. The plugin talks only to `cockpitd` on loopback.
 
-Do not choose native-plugin mode merely because it is more sophisticated.
-
 ### 3. Model the cockpit before implementing it
 
 Create or update configuration version 3. Start from `assets/cockpit.example.json` and validate against `assets/cockpit.schema.json`.
@@ -160,9 +158,9 @@ Map the generated tap launcher through the Stream Deck application. For an expli
 
 ### 4a. Edit an explicit macOS v3 profile page when the user asks
 
-Page creation is best done in the Stream Deck application. If the application
-palette cannot accept a drag through the available UI bridge, the guarded
-helper can add built-in **Open** actions to one already-created page. This is a
+Page creation is best done in the Stream Deck application. When you cannot drag
+an action out of the application palette yourself, the guarded helper can add
+built-in **Open** actions to one already-created page. This is a
 deliberate exception for an explicitly requested, user-owned profile—not a
 general profile database editor.
 
@@ -224,8 +222,10 @@ python3 scripts/migrate_herdr_claims.py --agent codex --drop-unmatched --claim-u
 ```
 
 The migration commands make backups and only remove unmatched claims for the
-explicit agent namespace. Run their dry-run form first when the claims also
-contain ordinary, non-Herdr terminal sessions.
+explicit agent namespace. `scripts/configure_herdr_sessions.py` and
+`scripts/migrate_herdr_claims.py` print a `dryRun` preview when `--apply` is
+omitted; preview that way first when the claims also contain ordinary,
+non-Herdr terminal sessions.
 
 Ask whether the user also wants sessions they started by hand — a Claude Code tab already open in iTerm2 — to appear on the deck. Most do, and a cockpit that only drives what it launched is half a cockpit. That path is available but weaker, so keep it separate from launch controls rather than merging the two:
 
@@ -273,12 +273,12 @@ python3 bin/cockpitctl.py --config path/to/cockpit.json \
 ```
 
 For Claude Code, `bin/claude_hook.py` is the reference bridge and
-`bin/install_claude_hooks.py` registers it append-only and idempotently. By
-default it maps `SessionStart`/`Stop` to `idle`, `UserPromptSubmit` to
-`running`, and `Notification` to `needs_attention`. `--extended` adds the tool,
-permission, elicitation, subagent, task, and compaction events, which are what
-make `blocked` and `failed` reachable — at the cost of running the bridge on
-every tool call. Offer it as a second step, not the default.
+`bin/install_claude_hooks.py` registers it append-only and idempotently. Read
+the default and `--extended` event tables in `references/progress-contract.md`
+before registering anything — the event-to-state mapping lives there, not here.
+`--extended` is what makes `blocked` and `failed` reachable, at the cost of
+running the bridge on every tool call. Offer it as a second step, not the
+default.
 
 Confirm every hook event name against the installed harness before registering
 it: a name the harness does not dispatch fails silently and looks exactly like
