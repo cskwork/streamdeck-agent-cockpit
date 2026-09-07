@@ -112,10 +112,7 @@ foreground checks above pass inside Herdr.
 
 ## Attaching to sessions the user already started
 
-A cockpit that can only drive sessions it launched is half a cockpit. Most agent
-work already runs in terminal tabs the user opened by hand. Attaching to those
-is possible, but it is structurally weaker than a named multiplexer session and
-the design has to admit that.
+Configure attached slots when the requested cockpit includes sessions the user started separately. Attached terminal sessions have weaker identity and control guarantees than named multiplexer sessions; preserve the constraints below.
 
 Three constraints drive the shape:
 

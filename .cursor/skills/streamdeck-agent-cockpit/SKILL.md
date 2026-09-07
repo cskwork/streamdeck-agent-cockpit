@@ -1,6 +1,6 @@
 ---
 name: streamdeck-agent-cockpit
-description: 'Use when a user wants a standalone Stream Deck cockpit for Claude Code, Codex, Pi, JCode, or other terminal agents: personalize buttons, launch/focus/resume/interrupt named sessions, display trustworthy local status, create or extend a Stream Deck plugin, or map recurring local workflows to controls. The core path must work without streamdeck-mcp, any MCP server, AgentDeck, or a cloud service.'
+description: "Build or maintain a standalone Stream Deck cockpit for terminal coding agents: named-session launch, focus, resume or interrupt controls, local status, and custom plugin actions. Uses a local daemon and declared commands; no MCP or cloud runtime required."
 ---
 
 # Stream Deck Agent Cockpit
@@ -227,7 +227,7 @@ explicit agent namespace. `scripts/configure_herdr_sessions.py` and
 omitted; preview that way first when the claims also contain ordinary,
 non-Herdr terminal sessions.
 
-Ask whether the user also wants sessions they started by hand — a Claude Code tab already open in iTerm2 — to appear on the deck. Most do, and a cockpit that only drives what it launched is half a cockpit. That path is available but weaker, so keep it separate from launch controls rather than merging the two:
+When the request includes sessions started outside the cockpit, such as an existing Claude Code tab, configure attached slots separately from launch controls:
 
 1. Predeclare slots (`session.<agent>.slot1` … `slotN`); an unlisted session cannot report to the daemon.
 2. Bind live sessions to slots with an agent hook, never by scraping terminal titles.
